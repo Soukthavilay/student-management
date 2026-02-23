@@ -1,0 +1,304 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  LECTURER
+  STUDENT
+}
+
+enum Platform {
+  IOS
+  ANDROID
+}
+
+enum GradeStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum AnnouncementScope {
+  ALL
+  DEPARTMENT
+  CLASS
+  SECTION
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  passwordHash String
+  fullName     String
+  role         Role
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  admin         Admin?
+  student       Student?
+  lecturer      Lecturer?
+  refreshTokens RefreshToken[]
+  deviceTokens  DeviceToken[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  announcements Announcement[] @relation("AnnouncementCreatedBy")
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Department {
+  id   Int    @id @default(autoincrement())
+  code String @unique
+  name String
+
+  classGroups   ClassGroup[]
+  students      Student[]
+  lecturers     Lecturer[]
+  subjects      Subject[]
+  announcements Announcement[]
+}
+
+model ClassGroup {
+  id           Int    @id @default(autoincrement())
+  code         String @unique
+  name         String
+  departmentId Int
+
+  department    Department     @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  students      Student[]
+  sections      Section[]
+  announcements Announcement[]
+
+  @@map("classes")
+}
+
+model Student {
+  id           Int    @id @default(autoincrement())
+  userId       Int    @unique
+  studentCode  String @unique
+  departmentId Int
+  classGroupId Int
+  phone        String?
+  address      String?
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department  Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  classGroup  ClassGroup @relation(fields: [classGroupId], references: [id], onDelete: Restrict)
+  enrollments Enrollment[]
+
+  @@index([classGroupId])
+  @@index([departmentId])
+}
+
+model Lecturer {
+  id           Int    @id @default(autoincrement())
+  userId       Int    @unique
+  lecturerCode String @unique
+  departmentId Int
+  title        String?
+
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department          Department           @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  teachingAssignments TeachingAssignment[]
+
+  @@index([departmentId])
+}
+
+model Subject {
+  id           Int    @id @default(autoincrement())
+  code         String @unique
+  name         String
+  credits      Int
+  departmentId Int
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  sections   Section[]
+
+  @@index([departmentId])
+}
+
+model Section {
+  id           Int    @id @default(autoincrement())
+  code         String @unique
+  subjectId    Int
+  classGroupId Int?
+  semester     String
+  academicYear String
+
+  subject             Subject               @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  classGroup          ClassGroup?           @relation(fields: [classGroupId], references: [id], onDelete: SetNull)
+  teachingAssignments TeachingAssignment[]
+  enrollments         Enrollment[]
+  schedules           Schedule[]
+  exams               Exam[]
+  announcements       Announcement[]
+
+  @@index([subjectId])
+  @@index([classGroupId])
+}
+
+model TeachingAssignment {
+  id         Int      @id @default(autoincrement())
+  sectionId  Int
+  lecturerId Int
+  createdAt  DateTime @default(now())
+
+  section  Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  lecturer Lecturer @relation(fields: [lecturerId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, lecturerId])
+  @@index([lecturerId])
+}
+
+model Enrollment {
+  id        Int      @id @default(autoincrement())
+  sectionId Int
+  studentId Int
+  createdAt DateTime @default(now())
+
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  grade   Grade?
+
+  @@unique([sectionId, studentId])
+  @@index([studentId])
+}
+
+model Grade {
+  id           Int         @id @default(autoincrement())
+  enrollmentId Int         @unique
+  finalScore   Float?
+  gpaPoint     Float?
+  status       GradeStatus @default(DRAFT)
+  submittedAt  DateTime?
+  updatedAt    DateTime    @updatedAt
+
+  enrollment Enrollment      @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  components GradeComponent[]
+}
+
+model GradeComponent {
+  id      Int    @id @default(autoincrement())
+  gradeId Int
+  name    String
+  weight  Float
+  score   Float
+
+  grade Grade @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+
+  @@index([gradeId])
+}
+
+model Schedule {
+  id        Int      @id @default(autoincrement())
+  sectionId Int
+  dayOfWeek Int
+  startTime String
+  endTime   String
+  room      String?
+  weekStart DateTime?
+  createdAt DateTime @default(now())
+
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId])
+}
+
+model Exam {
+  id        Int      @id @default(autoincrement())
+  sectionId Int
+  examDate  DateTime
+  room      String?
+  type      String
+
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId])
+}
+
+model Announcement {
+  id           Int               @id @default(autoincrement())
+  title        String
+  content      String
+  scope        AnnouncementScope
+  departmentId Int?
+  classGroupId Int?
+  sectionId    Int?
+  createdById  Int
+  createdAt    DateTime          @default(now())
+
+  department    Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  classGroup    ClassGroup?    @relation(fields: [classGroupId], references: [id], onDelete: SetNull)
+  section       Section?       @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  createdBy     User           @relation("AnnouncementCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  notifications Notification[]
+
+  @@index([createdAt])
+}
+
+model Notification {
+  id             Int       @id @default(autoincrement())
+  userId         Int
+  announcementId Int?
+  title          String
+  body           String
+  isRead         Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  announcement Announcement? @relation(fields: [announcementId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
+
+model DeviceToken {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  token      String   @unique
+  platform   Platform
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  token     String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+}

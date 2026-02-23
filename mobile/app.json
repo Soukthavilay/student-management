@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Student Management",
+    "slug": "student-management",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "student-mgmt",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1E3A5F"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.school.studentmanagement"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1E3A5F"
+      },
+      "package": "com.school.studentmanagement"
+    },
+    "extra": {
+      "apiBaseUrl": "http://192.168.100.9:4000/api"
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#1E3A5F"
+        }
+      ]
+    ]
+  }
+}
