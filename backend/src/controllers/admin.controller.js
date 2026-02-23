@@ -308,6 +308,55 @@ export async function listStudents(req, res, next) {
   }
 }
 
+export async function getStudentDetail(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const student = await prisma.student.findUnique({
+      where: { id: Number(id) },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            isActive: true,
+            createdAt: true,
+          },
+        },
+        department: {
+          select: { id: true, name: true },
+        },
+        classGroup: {
+          select: { id: true, code: true, name: true },
+        },
+        enrollments: {
+          include: {
+            section: {
+              include: {
+                subject: {
+                  select: { id: true, code: true, name: true, credits: true },
+                },
+                schedules: true,
+              },
+            },
+            grade: true,
+          },
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+
+    if (!student) {
+      throw notFound("Sinh viên không tồn tại");
+    }
+
+    return res.json({ data: student });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 export async function createStudent(req, res, next) {
   try {
     const {

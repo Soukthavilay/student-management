@@ -22,6 +22,7 @@ export const api = {
     createSchedule: (payload) => http.post("/admin/schedules", payload),
     createExam: (payload) => http.post("/admin/exams", payload),
     students: (params) => http.get("/admin/students", { params }),
+    getStudent: (id) => http.get(`/admin/students/${id}`),
     createStudent: (payload) => http.post("/admin/students", payload),
     updateStudent: (id, payload) => http.put(`/admin/students/${id}`, payload),
     lecturers: (params) => http.get("/admin/lecturers", { params }),

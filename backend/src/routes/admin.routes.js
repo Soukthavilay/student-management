@@ -12,6 +12,7 @@ import {
   createStudent,
   createSubject,
   dashboard,
+  getStudentDetail,
   listClassGroups,
   listDepartments,
   listLecturers,
@@ -54,6 +55,7 @@ adminRouter.post("/schedules", validate(createScheduleSchema), createSchedule);
 adminRouter.post("/exams", validate(createExamSchema), createExam);
 
 adminRouter.get("/students", listStudents);
+adminRouter.get("/students/:id", getStudentDetail);
 adminRouter.post("/students", validate(createStudentSchema), createStudent);
 adminRouter.put("/students/:id", validate(updateStudentSchema), updateStudent);
 
