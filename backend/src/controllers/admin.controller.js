@@ -76,6 +76,9 @@ export async function listClassGroups(req, res, next) {
       where: {
         ...(departmentId ? { departmentId } : {}),
       },
+      include: {
+        department: true,
+      },
       orderBy: {
         code: "asc",
       },
