@@ -43,6 +43,27 @@ export async function listDepartments(_req, res, next) {
   }
 }
 
+export async function createDepartment(req, res, next) {
+  try {
+    const { code, name } = req.body;
+
+    const existingCode = await prisma.department.findUnique({
+      where: { code },
+    });
+    if (existingCode) {
+      throw badRequest("Mã khoa đã tồn tại");
+    }
+
+    const department = await prisma.department.create({
+      data: { code, name },
+    });
+
+    return res.status(201).json({ data: department });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 export async function listClassGroups(req, res, next) {
   try {
     const parsedDepartmentId = req.query.departmentId ? Number(req.query.departmentId) : undefined;

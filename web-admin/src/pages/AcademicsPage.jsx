@@ -8,6 +8,11 @@ import TableCard from "../components/TableCard";
 import FormField from "../components/FormField";
 import { showToast } from "../components/Toast";
 
+const departmentSchema = z.object({
+  code: z.string().min(2),
+  name: z.string().min(2),
+});
+
 const classSchema = z.object({
   code: z.string().min(2),
   name: z.string().min(2),
@@ -45,6 +50,7 @@ const examSchema = z.object({
 });
 
 const tabs = [
+  { key: "departments", label: "Khoa" },
   { key: "classes", label: "Lớp học" },
   { key: "subjects", label: "Môn học" },
   { key: "sections", label: "Học phần" },
@@ -54,7 +60,7 @@ const tabs = [
 
 export default function AcademicsPage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("classes");
+  const [activeTab, setActiveTab] = useState("departments");
   const [showForm, setShowForm] = useState(false);
 
   const departmentsQuery = useQuery({
@@ -84,12 +90,14 @@ export default function AcademicsPage() {
     onError: (e) => showToast(e?.response?.data?.message || "Thao tác thất bại", "error"),
   });
 
+  const createDepartmentMutation = makeMutation("createDepartment", "Tạo khoa thành công");
   const createClassMutation = makeMutation("createClassGroup", "Tạo lớp thành công");
   const createSubjectMutation = makeMutation("createSubject", "Tạo môn học thành công");
   const createSectionMutation = makeMutation("createSection", "Tạo học phần thành công");
   const createScheduleMutation = makeMutation("createSchedule", "Tạo lịch học thành công");
   const createExamMutation = makeMutation("createExam", "Tạo lịch thi thành công");
 
+  const departmentForm = useForm({ resolver: zodResolver(departmentSchema) });
   const classForm = useForm({ resolver: zodResolver(classSchema) });
   const subjectForm = useForm({ resolver: zodResolver(subjectSchema) });
   const sectionForm = useForm({ resolver: zodResolver(sectionSchema), defaultValues: { semester: "HK1", academicYear: "2025-2026" } });
@@ -98,7 +106,7 @@ export default function AcademicsPage() {
 
   const handleTabChange = (key) => { setActiveTab(key); setShowForm(false); };
 
-  const formLabel = { classes: "lớp học", subjects: "môn học", sections: "học phần", schedules: "lịch học", exams: "lịch thi" };
+  const formLabel = { departments: "khoa", classes: "lớp học", subjects: "môn học", sections: "học phần", schedules: "lịch học", exams: "lịch thi" };
 
   return (
     <div className="space-y-6">
@@ -132,6 +140,44 @@ export default function AcademicsPage() {
           </button>
         ))}
       </div>
+
+      {/* DEPARTMENTS */}
+      {activeTab === "departments" && (
+        <>
+          {showForm && (
+            <TableCard title="Tạo khoa">
+              <form className="grid gap-3 md:grid-cols-2" onSubmit={departmentForm.handleSubmit(async (v) => { await createDepartmentMutation.mutateAsync(v); departmentForm.reset(); })}>
+                <FormField label="Mã khoa" error={departmentForm.formState.errors.code?.message}>
+                  <input className="rounded border border-slate-300 px-3 py-2" {...departmentForm.register("code")} />
+                </FormField>
+                <FormField label="Tên khoa" error={departmentForm.formState.errors.name?.message}>
+                  <input className="rounded border border-slate-300 px-3 py-2" {...departmentForm.register("name")} />
+                </FormField>
+                <div className="md:col-span-2 flex gap-3">
+                  <button className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800" type="submit">Tạo</button>
+                  <button type="button" className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" onClick={() => { departmentForm.reset(); setShowForm(false); }}>Huỷ</button>
+                </div>
+              </form>
+            </TableCard>
+          )}
+          <TableCard title={`Khoa (${(departmentsQuery.data || []).length})`}>
+            {(departmentsQuery.data || []).length === 0 ? (
+              <p className="py-10 text-center text-sm text-slate-400">Chưa có khoa nào</p>
+            ) : (
+              <table className="min-w-full text-left text-sm">
+                <thead><tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
+                  <th className="py-3 font-medium">Mã khoa</th><th className="py-3 font-medium">Tên khoa</th>
+                </tr></thead>
+                <tbody>{(departmentsQuery.data || []).map((d) => (
+                  <tr key={d.id} className="border-t border-slate-50 hover:bg-slate-50">
+                    <td className="py-3 font-mono text-xs">{d.code}</td><td className="py-3">{d.name}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            )}
+          </TableCard>
+        </>
+      )}
 
       {/* CLASSES */}
       {activeTab === "classes" && (

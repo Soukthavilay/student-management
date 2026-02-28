@@ -7,6 +7,7 @@ export const api = {
   admin: {
     dashboard: () => http.get("/admin/dashboard"),
     departments: () => http.get("/admin/departments"),
+    createDepartment: (payload) => http.post("/admin/departments", payload),
     classGroups: (departmentId) =>
       http.get("/admin/class-groups", {
         params: departmentId ? { departmentId } : undefined,

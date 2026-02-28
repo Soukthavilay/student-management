@@ -5,6 +5,14 @@ const baseEnvelope = {
   query: z.object({}).passthrough(),
 };
 
+export const createDepartmentSchema = z.object({
+  ...baseEnvelope,
+  body: z.object({
+    code: z.string().min(2, "Mã khoa phải có ít nhất 2 ký tự"),
+    name: z.string().min(2, "Tên khoa phải có ít nhất 2 ký tự"),
+  }),
+});
+
 export const createStudentSchema = z.object({
   ...baseEnvelope,
   body: z.object({

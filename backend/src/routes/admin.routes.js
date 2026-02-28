@@ -4,6 +4,7 @@ import {
   assignLecturer,
   createAnnouncement,
   createClassGroup,
+  createDepartment,
   createEnrollment,
   createExam,
   createLecturer,
@@ -26,6 +27,7 @@ import {
   assignLecturerSchema,
   createAnnouncementSchema,
   createClassGroupSchema,
+  createDepartmentSchema,
   createEnrollmentSchema,
   createExamSchema,
   createLecturerSchema,
@@ -45,6 +47,7 @@ adminRouter.use(requireRole("ADMIN"));
 adminRouter.get("/dashboard", dashboard);
 
 adminRouter.get("/departments", listDepartments);
+adminRouter.post("/departments", validate(createDepartmentSchema), createDepartment);
 adminRouter.get("/class-groups", listClassGroups);
 adminRouter.post("/class-groups", validate(createClassGroupSchema), createClassGroup);
 adminRouter.get("/subjects", listSubjects);
