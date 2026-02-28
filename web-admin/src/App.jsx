@@ -9,6 +9,7 @@ import AcademicsPage from "./pages/AcademicsPage";
 import AssignmentsPage from "./pages/AssignmentsPage";
 import AnnouncementsPage from "./pages/AnnouncementsPage";
 import StudentDetailPage from "./pages/StudentDetailPage";
+import LecturerDetailPage from "./pages/LecturerDetailPage";
 import LecturerGradesPage from "./pages/LecturerGradesPage";
 
 export default function App() {
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/students" element={<StudentsPage />} />
             <Route path="/students/:id" element={<StudentDetailPage />} />
             <Route path="/lecturers" element={<LecturersPage />} />
+            <Route path="/lecturers/:id" element={<LecturerDetailPage />} />
             <Route path="/academics" element={<AcademicsPage />} />
             <Route path="/assignments" element={<AssignmentsPage />} />
             <Route path="/announcements" element={<AnnouncementsPage />} />

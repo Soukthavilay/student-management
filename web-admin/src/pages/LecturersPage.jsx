@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -153,10 +154,16 @@ export default function LecturersPage() {
             <tbody>
               {(lecturersQuery.data || []).map((lecturer) => (
                 <tr key={lecturer.id} className="border-t border-slate-50 hover:bg-slate-50 transition-colors">
-                  <td className="py-3 font-mono text-xs">{lecturer.lecturerCode}</td>
+                  <td className="py-3 font-mono text-xs">
+                    <Link to={`/lecturers/${lecturer.id}`} className="hover:underline text-slate-900">
+                      {lecturer.lecturerCode}
+                    </Link>
+                  </td>
                   <td className="py-3 font-medium">
-                    {lecturer.title && <span className="text-slate-400 mr-1">{lecturer.title}</span>}
-                    {lecturer.user.fullName}
+                    <Link to={`/lecturers/${lecturer.id}`} className="hover:underline text-slate-900 flex items-center">
+                      {lecturer.title && <span className="text-slate-400 mr-1">{lecturer.title}</span>}
+                      {lecturer.user.fullName}
+                    </Link>
                   </td>
                   <td className="py-3 text-slate-500">{lecturer.user.email}</td>
                   <td className="py-3">{lecturer.department?.name}</td>

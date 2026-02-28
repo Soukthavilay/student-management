@@ -572,6 +572,54 @@ export async function listLecturers(req, res, next) {
   }
 }
 
+export async function getLecturerDetail(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const lecturer = await prisma.lecturer.findUnique({
+      where: { id: Number(id) },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            isActive: true,
+            createdAt: true,
+          },
+        },
+        department: {
+          select: { id: true, name: true },
+        },
+        teachingAssignments: {
+          include: {
+            section: {
+              include: {
+                subject: {
+                  select: { id: true, code: true, name: true, credits: true },
+                },
+                classGroup: {
+                  select: { id: true, code: true },
+                },
+                schedules: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+
+    if (!lecturer) {
+      throw notFound("Giảng viên không tồn tại");
+    }
+
+    return res.json({ data: lecturer });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 export async function createLecturer(req, res, next) {
   try {
     const { email, password, fullName, lecturerCode, departmentId, title } = req.body;

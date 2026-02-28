@@ -29,6 +29,7 @@ export const api = {
     createStudent: (payload) => http.post("/admin/students", payload),
     updateStudent: (id, payload) => http.put(`/admin/students/${id}`, payload),
     lecturers: (params) => http.get("/admin/lecturers", { params }),
+    getLecturer: (id) => http.get(`/admin/lecturers/${id}`),
     createLecturer: (payload) => http.post("/admin/lecturers", payload),
     updateLecturer: (id, payload) => http.put(`/admin/lecturers/${id}`, payload),
     assignLecturer: (payload) => http.post("/admin/assignments", payload),
