@@ -147,6 +147,9 @@ export async function listSubjects(req, res, next) {
       where: {
         ...(departmentId ? { departmentId } : {}),
       },
+      include: {
+        department: true,
+      },
       orderBy: {
         code: "asc",
       },
