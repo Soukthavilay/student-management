@@ -7,6 +7,7 @@ import { api } from "../lib/api";
 import TableCard from "../components/TableCard";
 import FormField from "../components/FormField";
 import { showToast } from "../components/Toast";
+import ConfirmModal from "../components/ConfirmModal";
 
 const departmentSchema = z.object({
   code: z.string().min(2),
@@ -62,48 +63,55 @@ export default function AcademicsPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("departments");
   const [showForm, setShowForm] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, id: null, deleteMutation: null });
 
-  const departmentsQuery = useQuery({
-    queryKey: ["departments"],
-    queryFn: async () => { const r = await api.admin.departments(); return r.data.data || []; },
-  });
-  const classGroupsQuery = useQuery({
-    queryKey: ["class-groups-all"],
-    queryFn: async () => { const r = await api.admin.classGroups(); return r.data.data || []; },
-  });
-  const subjectsQuery = useQuery({
-    queryKey: ["subjects-all"],
-    queryFn: async () => { const r = await api.admin.subjects(); return r.data.data || []; },
-  });
-  const sectionsQuery = useQuery({
-    queryKey: ["sections"],
-    queryFn: async () => { const r = await api.admin.sections(); return r.data.data || []; },
-  });
-  const schedulesQuery = useQuery({
-    queryKey: ["schedules"],
-    queryFn: async () => { const r = await api.admin.schedules(); return r.data.data || []; },
-  });
-  const examsQuery = useQuery({
-    queryKey: ["exams"],
-    queryFn: async () => { const r = await api.admin.exams(); return r.data.data || []; },
-  });
+  const departmentsQuery = useQuery({ queryKey: ["departments"], queryFn: async () => { const r = await api.admin.departments(); return r.data.data || []; } });
+  const classGroupsQuery = useQuery({ queryKey: ["class-groups-all"], queryFn: async () => { const r = await api.admin.classGroups(); return r.data.data || []; } });
+  const subjectsQuery = useQuery({ queryKey: ["subjects-all"], queryFn: async () => { const r = await api.admin.subjects(); return r.data.data || []; } });
+  const sectionsQuery = useQuery({ queryKey: ["sections"], queryFn: async () => { const r = await api.admin.sections(); return r.data.data || []; } });
+  const schedulesQuery = useQuery({ queryKey: ["schedules"], queryFn: async () => { const r = await api.admin.schedules(); return r.data.data || []; } });
+  const examsQuery = useQuery({ queryKey: ["exams"], queryFn: async () => { const r = await api.admin.exams(); return r.data.data || []; } });
 
   const makeMutation = (key, msg) => useMutation({
-    mutationFn: (p) => api.admin[key](p),
+    mutationFn: (p) => {
+      // If p has id and payload, it's an update. If it's a primitive string/number, it's a delete. Else create.
+      if (p?.id && p?.payload) return api.admin[key](p.id, p.payload);
+      if (typeof p === "number" || typeof p === "string") return api.admin[key](p);
+      return api.admin[key](p);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries();
       setShowForm(false);
+      setEditingItem(null);
       showToast(msg);
     },
     onError: (e) => showToast(e?.response?.data?.message || "Thao tác thất bại", "error"),
   });
 
   const createDepartmentMutation = makeMutation("createDepartment", "Tạo khoa thành công");
+  const updateDepartmentMutation = makeMutation("updateDepartment", "Cập nhật khoa thành công");
+  const deleteDepartmentMutation = makeMutation("deleteDepartment", "Xóa khoa thành công");
+
   const createClassMutation = makeMutation("createClassGroup", "Tạo lớp thành công");
+  const updateClassMutation = makeMutation("updateClassGroup", "Cập nhật lớp thành công");
+  const deleteClassMutation = makeMutation("deleteClassGroup", "Xóa lớp thành công");
+
   const createSubjectMutation = makeMutation("createSubject", "Tạo môn học thành công");
+  const updateSubjectMutation = makeMutation("updateSubject", "Cập nhật môn học thành công");
+  const deleteSubjectMutation = makeMutation("deleteSubject", "Xóa môn học thành công");
+
   const createSectionMutation = makeMutation("createSection", "Tạo học phần thành công");
+  const updateSectionMutation = makeMutation("updateSection", "Cập nhật học phần thành công");
+  const deleteSectionMutation = makeMutation("deleteSection", "Xóa học phần thành công");
+
   const createScheduleMutation = makeMutation("createSchedule", "Tạo lịch học thành công");
+  const updateScheduleMutation = makeMutation("updateSchedule", "Cập nhật lịch học thành công");
+  const deleteScheduleMutation = makeMutation("deleteSchedule", "Xóa lịch học thành công");
+
   const createExamMutation = makeMutation("createExam", "Tạo lịch thi thành công");
+  const updateExamMutation = makeMutation("updateExam", "Cập nhật lịch thi thành công");
+  const deleteExamMutation = makeMutation("deleteExam", "Xóa lịch thi thành công");
 
   const departmentForm = useForm({ resolver: zodResolver(departmentSchema) });
   const classForm = useForm({ resolver: zodResolver(classSchema) });
@@ -112,7 +120,25 @@ export default function AcademicsPage() {
   const scheduleForm = useForm({ resolver: zodResolver(scheduleSchema), defaultValues: { dayOfWeek: 2, startTime: "07:30", endTime: "09:30" } });
   const examForm = useForm({ resolver: zodResolver(examSchema), defaultValues: { examDate: "2026-06-10T08:00", type: "Final" } });
 
-  const handleTabChange = (key) => { setActiveTab(key); setShowForm(false); };
+  const handleTabChange = (key) => { setActiveTab(key); setShowForm(false); setEditingItem(null); };
+
+  const closeForm = (form) => {
+    form.reset();
+    setShowForm(false);
+    setEditingItem(null);
+  };
+
+  const openEdit = (item, form, mapItemToForm) => {
+    setEditingItem(item);
+    form.reset(mapItemToForm ? mapItemToForm(item) : item);
+    setShowForm(true);
+  };
+
+  const handleDelete = (e, id, deleteMutation) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setConfirmDelete({ isOpen: true, id, deleteMutation });
+  };
 
   const formLabel = { departments: "khoa", classes: "lớp học", subjects: "môn học", sections: "học phần", schedules: "lịch học", exams: "lịch thi" };
 
@@ -153,8 +179,15 @@ export default function AcademicsPage() {
       {activeTab === "departments" && (
         <>
           {showForm && (
-            <TableCard title="Tạo khoa">
-              <form className="grid gap-3 md:grid-cols-2" onSubmit={departmentForm.handleSubmit(async (v) => { await createDepartmentMutation.mutateAsync(v); departmentForm.reset(); })}>
+            <TableCard title={editingItem ? "Sửa khoa" : "Tạo khoa"}>
+              <form className="grid gap-3 md:grid-cols-2" onSubmit={departmentForm.handleSubmit(async (v) => { 
+                if (editingItem) {
+                  await updateDepartmentMutation.mutateAsync({ id: editingItem.id, payload: v });
+                } else {
+                  await createDepartmentMutation.mutateAsync(v); 
+                }
+                closeForm(departmentForm);
+              })}>
                 <FormField label="Mã khoa" error={departmentForm.formState.errors.code?.message}>
                   <input className="rounded border border-slate-300 px-3 py-2" {...departmentForm.register("code")} />
                 </FormField>
@@ -162,8 +195,8 @@ export default function AcademicsPage() {
                   <input className="rounded border border-slate-300 px-3 py-2" {...departmentForm.register("name")} />
                 </FormField>
                 <div className="md:col-span-2 flex gap-3">
-                  <button className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800" type="submit">Tạo</button>
-                  <button type="button" className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" onClick={() => { departmentForm.reset(); setShowForm(false); }}>Huỷ</button>
+                  <button className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800" type="submit">{editingItem ? "Cập nhật" : "Tạo"}</button>
+                  <button type="button" className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" onClick={() => closeForm(departmentForm)}>Huỷ</button>
                 </div>
               </form>
             </TableCard>
@@ -174,11 +207,15 @@ export default function AcademicsPage() {
             ) : (
               <table className="min-w-full text-left text-sm">
                 <thead><tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
-                  <th className="py-3 font-medium">Mã khoa</th><th className="py-3 font-medium">Tên khoa</th>
+                  <th className="py-3 font-medium">Mã khoa</th><th className="py-3 font-medium">Tên khoa</th><th className="py-3 font-medium text-right">Thao tác</th>
                 </tr></thead>
                 <tbody>{(departmentsQuery.data || []).map((d) => (
                   <tr key={d.id} className="border-t border-slate-50 hover:bg-slate-50">
                     <td className="py-3 font-mono text-xs">{d.code}</td><td className="py-3">{d.name}</td>
+                    <td className="py-3 text-right">
+                      <button type="button" onClick={(e) => { e.preventDefault(); openEdit(d, departmentForm); }} className="text-blue-600 hover:text-blue-800 mr-3 font-medium text-xs uppercase tracking-wide">Sửa</button>
+                      <button type="button" onClick={(e) => handleDelete(e, d.id, deleteDepartmentMutation)} className="text-red-600 hover:text-red-800 font-medium text-xs uppercase tracking-wide">Xóa</button>
+                    </td>
                   </tr>
                 ))}</tbody>
               </table>
@@ -191,8 +228,15 @@ export default function AcademicsPage() {
       {activeTab === "classes" && (
         <>
           {showForm && (
-            <TableCard title="Tạo lớp học">
-              <form className="grid gap-3 md:grid-cols-3" onSubmit={classForm.handleSubmit(async (v) => { await createClassMutation.mutateAsync(v); classForm.reset(); })}>
+            <TableCard title={editingItem ? "Sửa lớp học" : "Tạo lớp học"}>
+              <form className="grid gap-3 md:grid-cols-3" onSubmit={classForm.handleSubmit(async (v) => { 
+                if (editingItem) {
+                  await updateClassMutation.mutateAsync({ id: editingItem.id, payload: v });
+                } else {
+                  await createClassMutation.mutateAsync(v); 
+                }
+                closeForm(classForm);
+              })}>
                 <FormField label="Mã lớp" error={classForm.formState.errors.code?.message}>
                   <input className="rounded border border-slate-300 px-3 py-2" {...classForm.register("code")} />
                 </FormField>
@@ -206,8 +250,8 @@ export default function AcademicsPage() {
                   </select>
                 </FormField>
                 <div className="md:col-span-3 flex gap-3">
-                  <button className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800" type="submit">Tạo</button>
-                  <button type="button" className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" onClick={() => { classForm.reset(); setShowForm(false); }}>Huỷ</button>
+                  <button className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800" type="submit">{editingItem ? "Cập nhật" : "Tạo"}</button>
+                  <button type="button" className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" onClick={() => closeForm(classForm)}>Huỷ</button>
                 </div>
               </form>
             </TableCard>
@@ -218,11 +262,15 @@ export default function AcademicsPage() {
             ) : (
               <table className="min-w-full text-left text-sm">
                 <thead><tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
-                  <th className="py-3 font-medium">Mã lớp</th><th className="py-3 font-medium">Tên lớp</th><th className="py-3 font-medium">Khoa</th>
+                  <th className="py-3 font-medium">Mã lớp</th><th className="py-3 font-medium">Tên lớp</th><th className="py-3 font-medium">Khoa</th><th className="py-3 font-medium text-right">Thao tác</th>
                 </tr></thead>
                 <tbody>{(classGroupsQuery.data || []).map((cg) => (
                   <tr key={cg.id} className="border-t border-slate-50 hover:bg-slate-50">
                     <td className="py-3 font-mono text-xs">{cg.code}</td><td className="py-3">{cg.name}</td><td className="py-3 text-slate-500">{cg.department?.name || "-"}</td>
+                    <td className="py-3 text-right">
+                      <button type="button" onClick={(e) => { e.preventDefault(); openEdit(cg, classForm); }} className="text-blue-600 hover:text-blue-800 mr-3 font-medium text-xs uppercase tracking-wide">Sửa</button>
+                      <button type="button" onClick={(e) => handleDelete(e, cg.id, deleteClassMutation)} className="text-red-600 hover:text-red-800 font-medium text-xs uppercase tracking-wide">Xóa</button>
+                    </td>
                   </tr>
                 ))}</tbody>
               </table>
@@ -235,8 +283,15 @@ export default function AcademicsPage() {
       {activeTab === "subjects" && (
         <>
           {showForm && (
-            <TableCard title="Tạo môn học">
-              <form className="grid gap-3 md:grid-cols-4" onSubmit={subjectForm.handleSubmit(async (v) => { await createSubjectMutation.mutateAsync(v); subjectForm.reset(); })}>
+            <TableCard title={editingItem ? "Sửa môn học" : "Tạo môn học"}>
+              <form className="grid gap-3 md:grid-cols-4" onSubmit={subjectForm.handleSubmit(async (v) => { 
+                if (editingItem) {
+                  await updateSubjectMutation.mutateAsync({ id: editingItem.id, payload: v });
+                } else {
+                  await createSubjectMutation.mutateAsync(v); 
+                }
+                closeForm(subjectForm);
+              })}>
                 <FormField label="Mã môn" error={subjectForm.formState.errors.code?.message}>
                   <input className="rounded border border-slate-300 px-3 py-2" {...subjectForm.register("code")} />
                 </FormField>
@@ -253,8 +308,8 @@ export default function AcademicsPage() {
                   </select>
                 </FormField>
                 <div className="md:col-span-4 flex gap-3">
-                  <button className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800" type="submit">Tạo</button>
-                  <button type="button" className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" onClick={() => { subjectForm.reset(); setShowForm(false); }}>Huỷ</button>
+                  <button className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800" type="submit">{editingItem ? "Cập nhật" : "Tạo"}</button>
+                  <button type="button" className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" onClick={() => closeForm(subjectForm)}>Huỷ</button>
                 </div>
               </form>
             </TableCard>
@@ -265,11 +320,15 @@ export default function AcademicsPage() {
             ) : (
               <table className="min-w-full text-left text-sm">
                 <thead><tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
-                  <th className="py-3 font-medium">Mã môn</th><th className="py-3 font-medium">Tên môn</th><th className="py-3 font-medium">Tín chỉ</th><th className="py-3 font-medium">Khoa</th>
+                  <th className="py-3 font-medium">Mã môn</th><th className="py-3 font-medium">Tên môn</th><th className="py-3 font-medium">Tín chỉ</th><th className="py-3 font-medium">Khoa</th><th className="py-3 font-medium text-right">Thao tác</th>
                 </tr></thead>
                 <tbody>{(subjectsQuery.data || []).map((s) => (
                   <tr key={s.id} className="border-t border-slate-50 hover:bg-slate-50">
                     <td className="py-3 font-mono text-xs">{s.code}</td><td className="py-3">{s.name}</td><td className="py-3">{s.credits}</td><td className="py-3 text-slate-500">{s.department?.name || "-"}</td>
+                    <td className="py-3 text-right">
+                      <button type="button" onClick={(e) => { e.preventDefault(); openEdit(s, subjectForm); }} className="text-blue-600 hover:text-blue-800 mr-3 font-medium text-xs uppercase tracking-wide">Sửa</button>
+                      <button type="button" onClick={(e) => handleDelete(e, s.id, deleteSubjectMutation)} className="text-red-600 hover:text-red-800 font-medium text-xs uppercase tracking-wide">Xóa</button>
+                    </td>
                   </tr>
                 ))}</tbody>
               </table>
@@ -282,8 +341,17 @@ export default function AcademicsPage() {
       {activeTab === "sections" && (
         <>
           {showForm && (
-            <TableCard title="Tạo học phần">
-              <form className="grid gap-3 md:grid-cols-5" onSubmit={sectionForm.handleSubmit(async (v) => { await createSectionMutation.mutateAsync(v); sectionForm.reset({ semester: "HK1", academicYear: "2025-2026" }); })}>
+            <TableCard title={editingItem ? "Sửa học phần" : "Tạo học phần"}>
+              <form className="grid gap-3 md:grid-cols-5" onSubmit={sectionForm.handleSubmit(async (v) => { 
+                if (editingItem) {
+                  await updateSectionMutation.mutateAsync({ id: editingItem.id, payload: v });
+                  closeForm(sectionForm);
+                } else {
+                  await createSectionMutation.mutateAsync(v); 
+                  sectionForm.reset({ semester: "HK1", academicYear: "2025-2026" });
+                  setShowForm(false);
+                }
+              })}>
                 <FormField label="Mã HP" error={sectionForm.formState.errors.code?.message}>
                   <input className="rounded border border-slate-300 px-3 py-2" {...sectionForm.register("code")} />
                 </FormField>
@@ -306,8 +374,8 @@ export default function AcademicsPage() {
                   <input className="rounded border border-slate-300 px-3 py-2" {...sectionForm.register("academicYear")} />
                 </FormField>
                 <div className="md:col-span-5 flex gap-3">
-                  <button className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800" type="submit">Tạo</button>
-                  <button type="button" className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" onClick={() => { sectionForm.reset(); setShowForm(false); }}>Huỷ</button>
+                  <button className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800" type="submit">{editingItem ? "Cập nhật" : "Tạo"}</button>
+                  <button type="button" className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" onClick={() => { sectionForm.reset({ semester: "HK1", academicYear: "2025-2026" }); setShowForm(false); setEditingItem(null); }}>Huỷ</button>
                 </div>
               </form>
             </TableCard>
@@ -318,7 +386,7 @@ export default function AcademicsPage() {
             ) : (
               <table className="min-w-full text-left text-sm">
                 <thead><tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
-                  <th className="py-3 font-medium">Mã HP</th><th className="py-3 font-medium">Môn học</th><th className="py-3 font-medium">Lớp</th><th className="py-3 font-medium">Kỳ / Năm</th><th className="py-3 font-medium">Lịch học</th><th className="py-3 font-medium">Lịch thi</th>
+                  <th className="py-3 font-medium">Mã HP</th><th className="py-3 font-medium">Môn học</th><th className="py-3 font-medium">Lớp</th><th className="py-3 font-medium">Kỳ / Năm</th><th className="py-3 font-medium">Lịch học</th><th className="py-3 font-medium">Lịch thi</th><th className="py-3 font-medium text-right">Thao tác</th>
                 </tr></thead>
                 <tbody>{(sectionsQuery.data || []).map((s) => (
                   <tr key={s.id} className="border-t border-slate-50 hover:bg-slate-50">
@@ -328,6 +396,10 @@ export default function AcademicsPage() {
                     <td className="py-3 text-slate-500">{s.semester} / {s.academicYear}</td>
                     <td className="py-3">{s._count?.schedules || 0}</td>
                     <td className="py-3">{s._count?.exams || 0}</td>
+                    <td className="py-3 text-right">
+                      <button type="button" onClick={(evt) => { evt.preventDefault(); openEdit({ ...s, subjectId: s.subject?.id?.toString() || "", classGroupId: s.classGroup?.id?.toString() || "" }, sectionForm); }} className="text-blue-600 hover:text-blue-800 mr-3 font-medium text-xs uppercase tracking-wide">Sửa</button>
+                      <button type="button" onClick={(evt) => handleDelete(evt, s.id, deleteSectionMutation)} className="text-red-600 hover:text-red-800 font-medium text-xs uppercase tracking-wide">Xóa</button>
+                    </td>
                   </tr>
                 ))}</tbody>
               </table>
@@ -340,8 +412,15 @@ export default function AcademicsPage() {
       {activeTab === "schedules" && (
         <>
           {showForm && (
-            <TableCard title="Tạo lịch học">
-              <form className="grid gap-3 md:grid-cols-5" onSubmit={scheduleForm.handleSubmit(async (v) => { await createScheduleMutation.mutateAsync({ ...v, room: v.room || null }); })}>
+            <TableCard title={editingItem ? "Sửa lịch học" : "Tạo lịch học"}>
+              <form className="grid gap-3 md:grid-cols-5" onSubmit={scheduleForm.handleSubmit(async (v) => { 
+                if (editingItem) {
+                  await updateScheduleMutation.mutateAsync({ id: editingItem.id, payload: { ...v, room: v.room || null } });
+                } else {
+                  await createScheduleMutation.mutateAsync({ ...v, room: v.room || null }); 
+                }
+                closeForm(scheduleForm);
+              })}>
                 <FormField label="Học phần" error={scheduleForm.formState.errors.sectionId?.message}>
                   <select className="rounded border border-slate-300 px-3 py-2" {...scheduleForm.register("sectionId")}>
                     <option value="">Chọn HP</option>
@@ -363,8 +442,8 @@ export default function AcademicsPage() {
                   <input className="rounded border border-slate-300 px-3 py-2" placeholder="VD: A101" {...scheduleForm.register("room")} />
                 </FormField>
                 <div className="md:col-span-5 flex gap-3">
-                  <button className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800" type="submit">Tạo</button>
-                  <button type="button" className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" onClick={() => setShowForm(false)}>Huỷ</button>
+                  <button className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800" type="submit">{editingItem ? "Cập nhật" : "Tạo"}</button>
+                  <button type="button" className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" onClick={() => closeForm(scheduleForm)}>Huỷ</button>
                 </div>
               </form>
             </TableCard>
@@ -375,7 +454,7 @@ export default function AcademicsPage() {
             ) : (
               <table className="min-w-full text-left text-sm">
                 <thead><tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
-                  <th className="py-3 font-medium">Học phần</th><th className="py-3 font-medium">Lớp</th><th className="py-3 font-medium">Thời gian</th><th className="py-3 font-medium">Phòng</th>
+                  <th className="py-3 font-medium">Học phần</th><th className="py-3 font-medium">Lớp</th><th className="py-3 font-medium">Thời gian</th><th className="py-3 font-medium">Phòng</th><th className="py-3 font-medium text-right">Thao tác</th>
                 </tr></thead>
                 <tbody>{(schedulesQuery.data || []).map((s) => (
                   <tr key={s.id} className="border-t border-slate-50 hover:bg-slate-50">
@@ -383,6 +462,10 @@ export default function AcademicsPage() {
                     <td className="py-3"><span className="rounded bg-slate-100 px-2 py-0.5 text-xs">{s.section?.classGroup?.code}</span></td>
                     <td className="py-3">Thứ {s.dayOfWeek === 8 ? "CN" : s.dayOfWeek}, {s.startTime} - {s.endTime}</td>
                     <td className="py-3 text-slate-500">{s.room || "-"}</td>
+                    <td className="py-3 text-right">
+                      <button type="button" onClick={(e) => { e.preventDefault(); openEdit({ ...s, room: s.room || "" }, scheduleForm); }} className="text-blue-600 hover:text-blue-800 mr-3 font-medium text-xs uppercase tracking-wide">Sửa</button>
+                      <button type="button" onClick={(e) => handleDelete(e, s.id, deleteScheduleMutation)} className="text-red-600 hover:text-red-800 font-medium text-xs uppercase tracking-wide">Xóa</button>
+                    </td>
                   </tr>
                 ))}</tbody>
               </table>
@@ -395,8 +478,16 @@ export default function AcademicsPage() {
       {activeTab === "exams" && (
         <>
           {showForm && (
-            <TableCard title="Tạo lịch thi">
-              <form className="grid gap-3 md:grid-cols-4" onSubmit={examForm.handleSubmit(async (v) => { await createExamMutation.mutateAsync({ ...v, examDate: new Date(v.examDate).toISOString(), room: v.room || null }); })}>
+            <TableCard title={editingItem ? "Sửa lịch thi" : "Tạo lịch thi"}>
+              <form className="grid gap-3 md:grid-cols-4" onSubmit={examForm.handleSubmit(async (v) => { 
+                const payload = { ...v, examDate: new Date(v.examDate).toISOString(), room: v.room || null };
+                if (editingItem && editingItem.id) {
+                  await updateExamMutation.mutateAsync({ id: Number(editingItem.id), payload });
+                } else {
+                  await createExamMutation.mutateAsync(payload); 
+                }
+                closeForm(examForm);
+              })}>
                 <FormField label="Học phần" error={examForm.formState.errors.sectionId?.message}>
                   <select className="rounded border border-slate-300 px-3 py-2" {...examForm.register("sectionId")}>
                     <option value="">Chọn HP</option>
@@ -416,8 +507,8 @@ export default function AcademicsPage() {
                   <input className="rounded border border-slate-300 px-3 py-2" placeholder="VD: B202" {...examForm.register("room")} />
                 </FormField>
                 <div className="md:col-span-4 flex gap-3">
-                  <button className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800" type="submit">Tạo</button>
-                  <button type="button" className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" onClick={() => setShowForm(false)}>Huỷ</button>
+                  <button className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800" type="submit">{editingItem ? "Cập nhật" : "Tạo"}</button>
+                  <button type="button" className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" onClick={() => closeForm(examForm)}>Huỷ</button>
                 </div>
               </form>
             </TableCard>
@@ -428,7 +519,7 @@ export default function AcademicsPage() {
             ) : (
               <table className="min-w-full text-left text-sm">
                 <thead><tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
-                  <th className="py-3 font-medium">Học phần</th><th className="py-3 font-medium">Lớp</th><th className="py-3 font-medium">Ngày thi</th><th className="py-3 font-medium">Hình thức</th><th className="py-3 font-medium">Phòng</th>
+                  <th className="py-3 font-medium">Học phần</th><th className="py-3 font-medium">Lớp</th><th className="py-3 font-medium">Ngày thi</th><th className="py-3 font-medium">Hình thức</th><th className="py-3 font-medium">Phòng</th><th className="py-3 font-medium text-right">Thao tác</th>
                 </tr></thead>
                 <tbody>{(examsQuery.data || []).map((e) => (
                   <tr key={e.id} className="border-t border-slate-50 hover:bg-slate-50">
@@ -437,6 +528,26 @@ export default function AcademicsPage() {
                     <td className="py-3">{new Date(e.examDate).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" })}</td>
                     <td className="py-3">{e.type === "Midterm" ? "Giữa kỳ" : "Cuối kỳ"}</td>
                     <td className="py-3 text-slate-500">{e.room || "-"}</td>
+                    <td className="py-3 text-right">
+                      <button type="button" onClick={(evt) => { 
+                        evt.preventDefault(); 
+                        openEdit(e, examForm, (item) => {
+                          let formattedDate = "";
+                          if (item.examDate) {
+                             const d = new Date(item.examDate);
+                             if (!isNaN(d.getTime())) {
+                               formattedDate = d.toISOString().substring(0, 16);
+                             }
+                          }
+                          return { 
+                            ...item, 
+                            room: item.room || "", 
+                            examDate: formattedDate 
+                          };
+                        }); 
+                      }} className="text-blue-600 hover:text-blue-800 mr-3 font-medium text-xs uppercase tracking-wide">Sửa</button>
+                      <button type="button" onClick={(evt) => handleDelete(evt, e.id, deleteExamMutation)} className="text-red-600 hover:text-red-800 font-medium text-xs uppercase tracking-wide">Xóa</button>
+                    </td>
                   </tr>
                 ))}</tbody>
               </table>
@@ -444,6 +555,19 @@ export default function AcademicsPage() {
           </TableCard>
         </>
       )}
+
+      <ConfirmModal
+        isOpen={confirmDelete.isOpen}
+        title="Xác nhận xóa"
+        message="Bạn có chắc chắn muốn xóa dữ liệu này? Hành động này không thể hoàn tác."
+        onConfirm={() => {
+          if (confirmDelete.deleteMutation && confirmDelete.id) {
+            confirmDelete.deleteMutation.mutateAsync(confirmDelete.id);
+          }
+          setConfirmDelete({ isOpen: false, id: null, deleteMutation: null });
+        }}
+        onCancel={() => setConfirmDelete({ isOpen: false, id: null, deleteMutation: null })}
+      />
     </div>
   );
 }

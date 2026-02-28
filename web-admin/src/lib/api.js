@@ -8,22 +8,39 @@ export const api = {
     dashboard: () => http.get("/admin/dashboard"),
     departments: () => http.get("/admin/departments"),
     createDepartment: (payload) => http.post("/admin/departments", payload),
+    updateDepartment: (id, payload) => http.put(`/admin/departments/${id}`, payload),
+    deleteDepartment: (id) => http.delete(`/admin/departments/${id}`),
+
     classGroups: (departmentId) =>
       http.get("/admin/class-groups", {
         params: departmentId ? { departmentId } : undefined,
       }),
+    createClassGroup: (payload) => http.post("/admin/class-groups", payload),
+    updateClassGroup: (id, payload) => http.put(`/admin/class-groups/${id}`, payload),
+    deleteClassGroup: (id) => http.delete(`/admin/class-groups/${id}`),
+
     subjects: (departmentId) =>
       http.get("/admin/subjects", {
         params: departmentId ? { departmentId } : undefined,
       }),
-    sections: () => http.get("/admin/sections"),
-    schedules: () => http.get("/admin/schedules"),
-    exams: () => http.get("/admin/exams"),
-    createClassGroup: (payload) => http.post("/admin/class-groups", payload),
     createSubject: (payload) => http.post("/admin/subjects", payload),
+    updateSubject: (id, payload) => http.put(`/admin/subjects/${id}`, payload),
+    deleteSubject: (id) => http.delete(`/admin/subjects/${id}`),
+
+    sections: () => http.get("/admin/sections"),
     createSection: (payload) => http.post("/admin/sections", payload),
+    updateSection: (id, payload) => http.put(`/admin/sections/${id}`, payload),
+    deleteSection: (id) => http.delete(`/admin/sections/${id}`),
+
+    schedules: () => http.get("/admin/schedules"),
     createSchedule: (payload) => http.post("/admin/schedules", payload),
+    updateSchedule: (id, payload) => http.put(`/admin/schedules/${id}`, payload),
+    deleteSchedule: (id) => http.delete(`/admin/schedules/${id}`),
+
+    exams: () => http.get("/admin/exams"),
     createExam: (payload) => http.post("/admin/exams", payload),
+    updateExam: (id, payload) => http.put(`/admin/exams/${id}`, payload),
+    deleteExam: (id) => http.delete(`/admin/exams/${id}`),
     students: (params) => http.get("/admin/students", { params }),
     getStudent: (id) => http.get(`/admin/students/${id}`),
     createStudent: (payload) => http.post("/admin/students", payload),

@@ -13,6 +13,17 @@ export const createDepartmentSchema = z.object({
   }),
 });
 
+export const updateDepartmentSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int().positive(),
+  }),
+  query: z.object({}).passthrough(),
+  body: z.object({
+    code: z.string().min(2).optional(),
+    name: z.string().min(2).optional(),
+  }),
+});
+
 export const createStudentSchema = z.object({
   ...baseEnvelope,
   body: z.object({
@@ -96,6 +107,18 @@ export const createClassGroupSchema = z.object({
   }),
 });
 
+export const updateClassGroupSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int().positive(),
+  }),
+  query: z.object({}).passthrough(),
+  body: z.object({
+    code: z.string().min(2).optional(),
+    name: z.string().min(2).optional(),
+    departmentId: z.coerce.number().int().positive().optional(),
+  }),
+});
+
 export const createSubjectSchema = z.object({
   ...baseEnvelope,
   body: z.object({
@@ -103,6 +126,19 @@ export const createSubjectSchema = z.object({
     name: z.string().min(2),
     credits: z.coerce.number().int().positive(),
     departmentId: z.coerce.number().int().positive(),
+  }),
+});
+
+export const updateSubjectSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int().positive(),
+  }),
+  query: z.object({}).passthrough(),
+  body: z.object({
+    code: z.string().min(2).optional(),
+    name: z.string().min(2).optional(),
+    credits: z.coerce.number().int().positive().optional(),
+    departmentId: z.coerce.number().int().positive().optional(),
   }),
 });
 
@@ -117,6 +153,20 @@ export const createSectionSchema = z.object({
   }),
 });
 
+export const updateSectionSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int().positive(),
+  }),
+  query: z.object({}).passthrough(),
+  body: z.object({
+    code: z.string().min(2).optional(),
+    subjectId: z.coerce.number().int().positive().optional(),
+    classGroupId: z.coerce.number().int().positive().optional().nullable(),
+    semester: z.string().min(2).optional(),
+    academicYear: z.string().min(4).optional(),
+  }),
+});
+
 export const createScheduleSchema = z.object({
   ...baseEnvelope,
   body: z.object({
@@ -128,6 +178,20 @@ export const createScheduleSchema = z.object({
   }),
 });
 
+export const updateScheduleSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int().positive(),
+  }),
+  query: z.object({}).passthrough(),
+  body: z.object({
+    sectionId: z.coerce.number().int().positive().optional(),
+    dayOfWeek: z.coerce.number().int().min(2).max(8).optional(),
+    startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+    endTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+    room: z.string().max(100).optional().nullable(),
+  }),
+});
+
 export const createExamSchema = z.object({
   ...baseEnvelope,
   body: z.object({
@@ -135,6 +199,19 @@ export const createExamSchema = z.object({
     examDate: z.coerce.date(),
     room: z.string().max(100).optional().nullable(),
     type: z.string().min(2),
+  }),
+});
+
+export const updateExamSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int().positive(),
+  }),
+  query: z.object({}).passthrough(),
+  body: z.object({
+    sectionId: z.coerce.number().int().positive().optional(),
+    examDate: z.coerce.date().optional(),
+    room: z.string().max(100).optional().nullable(),
+    type: z.string().min(2).optional(),
   }),
 });
 

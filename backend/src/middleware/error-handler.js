@@ -9,7 +9,7 @@ export function notFoundHandler(_req, _res, next) {
 export function errorHandler(error, _req, res, _next) {
   if (error instanceof ZodError) {
     return res.status(400).json({
-      message: "Validation failed",
+      message: "Validation failed: " + JSON.stringify(error.flatten().fieldErrors),
       errors: error.flatten(),
     });
   }

@@ -64,6 +64,57 @@ export async function createDepartment(req, res, next) {
   }
 }
 
+export async function updateDepartment(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { code, name } = req.body;
+
+    const department = await prisma.department.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!department) throw badRequest("Khoa không tồn tại");
+
+    if (code && code !== department.code) {
+      const existingCode = await prisma.department.findUnique({
+        where: { code },
+      });
+      if (existingCode) throw badRequest("Mã khoa đã tồn tại");
+    }
+
+    const updated = await prisma.department.update({
+      where: { id: Number(id) },
+      data: { code, name },
+    });
+
+    return res.json({ data: updated });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteDepartment(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    // Constraints check
+    const classCount = await prisma.classGroup.count({ where: { departmentId: Number(id) } });
+    const lecturerCount = await prisma.lecturer.count({ where: { departmentId: Number(id) } });
+    const studentCount = await prisma.student.count({ where: { departmentId: Number(id) } });
+
+    if (classCount > 0 || lecturerCount > 0 || studentCount > 0) {
+      throw badRequest("Không thể xóa Khoa đang có dữ liệu (Lớp sinh hoạt, Giảng viên, Sinh viên)");
+    }
+
+    await prisma.department.delete({
+      where: { id: Number(id) },
+    });
+
+    return res.json({ message: "Xóa khoa thành công" });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 export async function listClassGroups(req, res, next) {
   try {
     const parsedDepartmentId = req.query.departmentId ? Number(req.query.departmentId) : undefined;
@@ -184,6 +235,60 @@ export async function createClassGroup(req, res, next) {
   }
 }
 
+export async function updateClassGroup(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { code, name, departmentId } = req.body;
+
+    const classGroup = await prisma.classGroup.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!classGroup) throw badRequest("Lớp sinh hoạt không tồn tại");
+
+    if (code && code !== classGroup.code) {
+      const existingCode = await prisma.classGroup.findUnique({
+        where: { code },
+      });
+      if (existingCode) throw badRequest("Mã lớp sinh hoạt đã tồn tại");
+    }
+
+    const updated = await prisma.classGroup.update({
+      where: { id: Number(id) },
+      data: {
+        ...(code && { code }),
+        ...(name && { name }),
+        ...(departmentId && { departmentId }),
+      },
+    });
+
+    return res.json({ data: updated });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteClassGroup(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    // Constraints check
+    const studentCount = await prisma.student.count({ where: { classGroupId: Number(id) } });
+    const sectionCount = await prisma.section.count({ where: { classGroupId: Number(id) } });
+
+    if (studentCount > 0 || sectionCount > 0) {
+      throw badRequest("Không thể xóa Lớp sinh hoạt đang có Sinh viên hoặc Học phần");
+    }
+
+    await prisma.classGroup.delete({
+      where: { id: Number(id) },
+    });
+
+    return res.json({ message: "Xóa lớp sinh hoạt thành công" });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 export async function createSubject(req, res, next) {
   try {
     const created = await prisma.subject.create({
@@ -203,6 +308,60 @@ export async function createSubject(req, res, next) {
     });
 
     return res.status(201).json({ data: created });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateSubject(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { code, name, credits, departmentId } = req.body;
+
+    const subject = await prisma.subject.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!subject) throw badRequest("Môn học không tồn tại");
+
+    if (code && code !== subject.code) {
+      const existingCode = await prisma.subject.findUnique({
+        where: { code },
+      });
+      if (existingCode) throw badRequest("Mã môn học đã tồn tại");
+    }
+
+    const updated = await prisma.subject.update({
+      where: { id: Number(id) },
+      data: {
+        ...(code && { code }),
+        ...(name && { name }),
+        ...(credits && { credits }),
+        ...(departmentId && { departmentId }),
+      },
+    });
+
+    return res.json({ data: updated });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteSubject(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    // Constraints check
+    const sectionCount = await prisma.section.count({ where: { subjectId: Number(id) } });
+
+    if (sectionCount > 0) {
+      throw badRequest("Không thể xóa Môn học đang có Học phần");
+    }
+
+    await prisma.subject.delete({
+      where: { id: Number(id) },
+    });
+
+    return res.json({ message: "Xóa môn học thành công" });
   } catch (error) {
     return next(error);
   }
@@ -233,15 +392,119 @@ export async function createSection(req, res, next) {
   }
 }
 
+export async function updateSection(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { code, subjectId, classGroupId, semester, academicYear } = req.body;
+
+    const section = await prisma.section.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!section) throw badRequest("Học phần không tồn tại");
+
+    if (code && code !== section.code) {
+      const existingCode = await prisma.section.findUnique({
+        where: { code },
+      });
+      if (existingCode) throw badRequest("Mã học phần đã tồn tại");
+    }
+
+    const updated = await prisma.section.update({
+      where: { id: Number(id) },
+      data: {
+        ...(code && { code }),
+        ...(subjectId && { subjectId }),
+        ...(classGroupId !== undefined && { classGroupId }), // allow null
+        ...(semester && { semester }),
+        ...(academicYear && { academicYear }),
+      },
+    });
+
+    return res.json({ data: updated });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteSection(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    // Constraints check
+    const enrollmentCount = await prisma.enrollment.count({ where: { sectionId: Number(id) } });
+    const assignmentCount = await prisma.teachingAssignment.count({ where: { sectionId: Number(id) } });
+    const scheduleCount = await prisma.schedule.count({ where: { sectionId: Number(id) } });
+    const examCount = await prisma.exam.count({ where: { sectionId: Number(id) } });
+
+    if (enrollmentCount > 0 || assignmentCount > 0 || scheduleCount > 0 || examCount > 0) {
+      throw badRequest("Không thể xóa Học phần đã có Sinh viên, Giảng viên phân công, Lịch học, hoặc Lịch thi");
+    }
+
+    await prisma.section.delete({
+      where: { id: Number(id) },
+    });
+
+    return res.json({ message: "Xóa học phần thành công" });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function checkScheduleOverlap(sectionId, dayOfWeek, startTime, endTime, room, excludeScheduleId = null) {
+  if (startTime >= endTime) {
+    throw badRequest("Thời gian kết thúc phải lớn hơn thời gian bắt đầu.");
+  }
+
+  const sectionOverlap = await prisma.schedule.findFirst({
+    where: {
+      sectionId,
+      dayOfWeek,
+      ...(excludeScheduleId && { id: { not: excludeScheduleId } }),
+      startTime: { lt: endTime },
+      endTime: { gt: startTime },
+    },
+  });
+
+  if (sectionOverlap) {
+    throw badRequest("Học phần này đã có lịch học trùng thời gian.");
+  }
+
+  if (room) {
+    const roomOverlap = await prisma.schedule.findFirst({
+      where: {
+        room,
+        dayOfWeek,
+        ...(excludeScheduleId && { id: { not: excludeScheduleId } }),
+        startTime: { lt: endTime },
+        endTime: { gt: startTime },
+      },
+      include: {
+        section: {
+          include: { subject: true },
+        },
+      },
+    });
+
+    if (roomOverlap) {
+      const subjectName = roomOverlap.section.subject?.name || roomOverlap.section.code;
+      throw badRequest(`Phòng ${room} đang bị trùng lịch (Đã xếp cho ${subjectName}, thứ ${dayOfWeek}, ${roomOverlap.startTime}-${roomOverlap.endTime}).`);
+    }
+  }
+}
+
 export async function createSchedule(req, res, next) {
   try {
+    const { sectionId, dayOfWeek, startTime, endTime, room } = req.body;
+
+    await checkScheduleOverlap(sectionId, dayOfWeek, startTime, endTime, room);
+
     const created = await prisma.schedule.create({
       data: {
-        sectionId: req.body.sectionId,
-        dayOfWeek: req.body.dayOfWeek,
-        startTime: req.body.startTime,
-        endTime: req.body.endTime,
-        room: req.body.room ?? null,
+        sectionId,
+        dayOfWeek,
+        startTime,
+        endTime,
+        room: room ?? null,
       },
     });
 
@@ -256,6 +519,55 @@ export async function createSchedule(req, res, next) {
     });
 
     return res.status(201).json({ data: created });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateSchedule(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { sectionId, dayOfWeek, startTime, endTime, room } = req.body;
+
+    const schedule = await prisma.schedule.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!schedule) throw badRequest("Lịch học không tồn tại");
+
+    const newSectionId = sectionId || schedule.sectionId;
+    const newDayOfWeek = dayOfWeek || schedule.dayOfWeek;
+    const newStartTime = startTime || schedule.startTime;
+    const newEndTime = endTime || schedule.endTime;
+    const newRoom = room !== undefined ? room : schedule.room;
+
+    await checkScheduleOverlap(newSectionId, newDayOfWeek, newStartTime, newEndTime, newRoom, Number(id));
+
+    const updated = await prisma.schedule.update({
+      where: { id: Number(id) },
+      data: {
+        ...(sectionId && { sectionId }),
+        ...(dayOfWeek && { dayOfWeek }),
+        ...(startTime && { startTime }),
+        ...(endTime && { endTime }),
+        ...(room !== undefined && { room }),
+      },
+    });
+
+    return res.json({ data: updated });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteSchedule(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    await prisma.schedule.delete({
+      where: { id: Number(id) },
+    });
+
+    return res.json({ message: "Xóa lịch học thành công" });
   } catch (error) {
     return next(error);
   }
@@ -283,6 +595,46 @@ export async function createExam(req, res, next) {
     });
 
     return res.status(201).json({ data: created });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateExam(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { sectionId, examDate, room, type } = req.body;
+
+    const exam = await prisma.exam.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!exam) throw badRequest("Lịch thi không tồn tại");
+
+    const updated = await prisma.exam.update({
+      where: { id: Number(id) },
+      data: {
+        ...(sectionId && { sectionId }),
+        ...(examDate && { examDate }),
+        ...(room !== undefined && { room }),
+        ...(type && { type }),
+      },
+    });
+
+    return res.json({ data: updated });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteExam(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    await prisma.exam.delete({
+      where: { id: Number(id) },
+    });
+
+    return res.json({ message: "Xóa lịch thi thành công" });
   } catch (error) {
     return next(error);
   }
