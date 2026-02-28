@@ -18,6 +18,8 @@ import {
   listDepartments,
   listLecturers,
   listSections,
+  listSchedules,
+  listExams,
   listStudents,
   listSubjects,
   updateLecturer,
@@ -54,7 +56,9 @@ adminRouter.get("/subjects", listSubjects);
 adminRouter.post("/subjects", validate(createSubjectSchema), createSubject);
 adminRouter.get("/sections", listSections);
 adminRouter.post("/sections", validate(createSectionSchema), createSection);
+adminRouter.get("/schedules", listSchedules);
 adminRouter.post("/schedules", validate(createScheduleSchema), createSchedule);
+adminRouter.get("/exams", listExams);
 adminRouter.post("/exams", validate(createExamSchema), createExam);
 
 adminRouter.get("/students", listStudents);

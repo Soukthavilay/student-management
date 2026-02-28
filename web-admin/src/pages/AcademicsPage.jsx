@@ -79,6 +79,14 @@ export default function AcademicsPage() {
     queryKey: ["sections"],
     queryFn: async () => { const r = await api.admin.sections(); return r.data.data || []; },
   });
+  const schedulesQuery = useQuery({
+    queryKey: ["schedules"],
+    queryFn: async () => { const r = await api.admin.schedules(); return r.data.data || []; },
+  });
+  const examsQuery = useQuery({
+    queryKey: ["exams"],
+    queryFn: async () => { const r = await api.admin.exams(); return r.data.data || []; },
+  });
 
   const makeMutation = (key, msg) => useMutation({
     mutationFn: (p) => api.admin[key](p),
@@ -361,8 +369,24 @@ export default function AcademicsPage() {
               </form>
             </TableCard>
           )}
-          <TableCard title="Lịch học">
-            <p className="py-8 text-center text-sm text-slate-400">Chọn "Thêm lịch học" để tạo lịch cho học phần.</p>
+          <TableCard title={`Lịch học (${(schedulesQuery.data || []).length})`}>
+            {(schedulesQuery.data || []).length === 0 ? (
+              <p className="py-10 text-center text-sm text-slate-400">Chưa có lịch học nào</p>
+            ) : (
+              <table className="min-w-full text-left text-sm">
+                <thead><tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
+                  <th className="py-3 font-medium">Học phần</th><th className="py-3 font-medium">Lớp</th><th className="py-3 font-medium">Thời gian</th><th className="py-3 font-medium">Phòng</th>
+                </tr></thead>
+                <tbody>{(schedulesQuery.data || []).map((s) => (
+                  <tr key={s.id} className="border-t border-slate-50 hover:bg-slate-50">
+                    <td className="py-3 font-mono text-xs">{s.section?.code} - {s.section?.subject?.name}</td>
+                    <td className="py-3"><span className="rounded bg-slate-100 px-2 py-0.5 text-xs">{s.section?.classGroup?.code}</span></td>
+                    <td className="py-3">Thứ {s.dayOfWeek === 8 ? "CN" : s.dayOfWeek}, {s.startTime} - {s.endTime}</td>
+                    <td className="py-3 text-slate-500">{s.room || "-"}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            )}
           </TableCard>
         </>
       )}
@@ -398,8 +422,25 @@ export default function AcademicsPage() {
               </form>
             </TableCard>
           )}
-          <TableCard title="Lịch thi">
-            <p className="py-8 text-center text-sm text-slate-400">Chọn "Thêm lịch thi" để tạo lịch thi cho học phần.</p>
+          <TableCard title={`Lịch thi (${(examsQuery.data || []).length})`}>
+            {(examsQuery.data || []).length === 0 ? (
+              <p className="py-10 text-center text-sm text-slate-400">Chưa có lịch thi nào</p>
+            ) : (
+              <table className="min-w-full text-left text-sm">
+                <thead><tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
+                  <th className="py-3 font-medium">Học phần</th><th className="py-3 font-medium">Lớp</th><th className="py-3 font-medium">Ngày thi</th><th className="py-3 font-medium">Hình thức</th><th className="py-3 font-medium">Phòng</th>
+                </tr></thead>
+                <tbody>{(examsQuery.data || []).map((e) => (
+                  <tr key={e.id} className="border-t border-slate-50 hover:bg-slate-50">
+                    <td className="py-3 font-mono text-xs">{e.section?.code} - {e.section?.subject?.name}</td>
+                    <td className="py-3"><span className="rounded bg-slate-100 px-2 py-0.5 text-xs">{e.section?.classGroup?.code}</span></td>
+                    <td className="py-3">{new Date(e.examDate).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" })}</td>
+                    <td className="py-3">{e.type === "Midterm" ? "Giữa kỳ" : "Cuối kỳ"}</td>
+                    <td className="py-3 text-slate-500">{e.room || "-"}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            )}
           </TableCard>
         </>
       )}

@@ -288,6 +288,49 @@ export async function createExam(req, res, next) {
   }
 }
 
+export async function listSchedules(req, res, next) {
+  try {
+    const schedules = await prisma.schedule.findMany({
+      include: {
+        section: {
+          include: {
+            subject: true,
+            classGroup: true,
+          },
+        },
+      },
+      orderBy: [
+        { dayOfWeek: "asc" },
+        { startTime: "asc" },
+      ],
+    });
+    return res.json({ data: schedules });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function listExams(req, res, next) {
+  try {
+    const exams = await prisma.exam.findMany({
+      include: {
+        section: {
+          include: {
+            subject: true,
+            classGroup: true,
+          },
+        },
+      },
+      orderBy: {
+        examDate: "asc",
+      },
+    });
+    return res.json({ data: exams });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 export async function listStudents(req, res, next) {
   try {
     const { q } = req.query;

@@ -17,6 +17,8 @@ export const api = {
         params: departmentId ? { departmentId } : undefined,
       }),
     sections: () => http.get("/admin/sections"),
+    schedules: () => http.get("/admin/schedules"),
+    exams: () => http.get("/admin/exams"),
     createClassGroup: (payload) => http.post("/admin/class-groups", payload),
     createSubject: (payload) => http.post("/admin/subjects", payload),
     createSection: (payload) => http.post("/admin/sections", payload),
