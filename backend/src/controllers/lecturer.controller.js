@@ -5,6 +5,8 @@ import {
   toGpaPoint,
 } from "../utils/grade.js";
 import { createAuditLog } from "../services/audit.service.js";
+import { resolveAnnouncementTargetUserIds } from "../services/announcement-target.service.js";
+import { createInAppNotifications, sendPushToUsers } from "../services/notification.service.js";
 
 async function getLecturerOrThrow(userId) {
   const lecturer = await prisma.lecturer.findUnique({
@@ -117,6 +119,72 @@ export async function listSectionStudents(req, res, next) {
     });
 
     return res.json({ students });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function listTimetable(req, res, next) {
+  try {
+    const lecturer = await getLecturerOrThrow(req.user.id);
+
+    const assignments = await prisma.teachingAssignment.findMany({
+      where: { lecturerId: lecturer.id },
+      select: {
+        section: {
+          select: {
+            id: true,
+            code: true,
+            semester: true,
+            academicYear: true,
+            subject: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                credits: true,
+              },
+            },
+            classGroup: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                department: {
+                  select: {
+                    id: true,
+                    code: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+            schedules: {
+              select: {
+                id: true,
+                dayOfWeek: true,
+                startTime: true,
+                endTime: true,
+                room: true,
+              },
+              orderBy: {
+                dayOfWeek: "asc",
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        id: "desc",
+      },
+    });
+
+    const timetable = assignments.map((item) => ({
+      ...item.section,
+      department: item.section.classGroup?.department,
+    }));
+
+    return res.json({ timetable });
   } catch (error) {
     return next(error);
   }
@@ -265,6 +333,118 @@ export async function submitGrade(req, res, next) {
     });
 
     return res.json({ grade: updated });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function createLecturerAnnouncement(req, res, next) {
+  try {
+    const lecturer = await getLecturerOrThrow(req.user.id);
+    const { title, content, scope, classGroupId, sectionId } = req.body;
+
+    // Validate scope and ownership
+    if (scope === "CLASS" && classGroupId) {
+      // Verify lecturer teaches in this class group
+      const teachesClass = await prisma.teachingAssignment.findFirst({
+        where: {
+          lecturerId: lecturer.id,
+          section: { classGroupId },
+        },
+      });
+      if (!teachesClass) {
+        throw forbidden("Bạn không dạy lớp này");
+      }
+    } else if (scope === "SECTION" && sectionId) {
+      // Verify lecturer teaches this section
+      const teachesSection = await prisma.teachingAssignment.findFirst({
+        where: {
+          lecturerId: lecturer.id,
+          sectionId,
+        },
+      });
+      if (!teachesSection) {
+        throw forbidden("Bạn không dạy học phần này");
+      }
+    } else {
+      throw badRequest("Phạm vi thông báo không hợp lệ (chỉ hỗ trợ CLASS hoặc SECTION)");
+    }
+
+    const announcement = await prisma.announcement.create({
+      data: {
+        title,
+        content,
+        scope,
+        classGroupId: classGroupId ?? null,
+        sectionId: sectionId ?? null,
+        createdById: req.user.id,
+      },
+    });
+
+    const userIds = await resolveAnnouncementTargetUserIds({
+      scope,
+      classGroupId,
+      sectionId,
+    });
+
+    await createInAppNotifications({
+      userIds,
+      title,
+      body: content,
+      announcementId: announcement.id,
+    });
+
+    const pushResult = await sendPushToUsers({
+      userIds,
+      title,
+      body: content,
+    });
+
+    await createAuditLog({
+      userId: req.user.id,
+      action: "CREATE_LECTURER_ANNOUNCEMENT",
+      entity: "Announcement",
+      entityId: announcement.id,
+      metadata: {
+        scope,
+        targetUsers: userIds.length,
+        pushResult,
+      },
+    });
+
+    return res.status(201).json({
+      announcement,
+      targetUsers: userIds.length,
+      pushResult,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function listLecturerAnnouncements(req, res, next) {
+  try {
+    const lecturer = await getLecturerOrThrow(req.user.id);
+
+    const announcements = await prisma.announcement.findMany({
+      where: {
+        createdById: req.user.id,
+      },
+      include: {
+        classGroup: {
+          select: { id: true, code: true, name: true },
+        },
+        section: {
+          select: { id: true, code: true, subject: { select: { name: true } } },
+        },
+        _count: {
+          select: { notifications: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return res.json({ announcements });
   } catch (error) {
     return next(error);
   }

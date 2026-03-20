@@ -37,6 +37,11 @@ import {
   deleteExam,
   updateLecturer,
   updateStudent,
+  getCurriculum,
+  upsertCurriculum,
+  addCurriculumSubject,
+  removeCurriculumSubject,
+  enrollStudentBySemester,
 } from "../controllers/admin.controller.js";
 import {
   assignLecturerSchema,
@@ -44,6 +49,9 @@ import {
   createClassGroupSchema,
   createDepartmentSchema,
   createEnrollmentSchema,
+  upsertCurriculumSchema,
+  addCurriculumSubjectSchema,
+  enrollBySemesterSchema,
   createExamSchema,
   createLecturerSchema,
   createScheduleSchema,
@@ -112,3 +120,9 @@ adminRouter.post("/assignments", validate(assignLecturerSchema), assignLecturer)
 adminRouter.post("/announcements", validate(createAnnouncementSchema), createAnnouncement);
 
 adminRouter.post("/enrollments", validate(createEnrollmentSchema), createEnrollment);
+
+adminRouter.get("/curriculum", getCurriculum);
+adminRouter.post("/curriculum", validate(upsertCurriculumSchema), upsertCurriculum);
+adminRouter.post("/curriculum/subjects", validate(addCurriculumSubjectSchema), addCurriculumSubject);
+adminRouter.delete("/curriculum/subjects/:id", removeCurriculumSubject);
+adminRouter.post("/enrollments/semester", validate(enrollBySemesterSchema), enrollStudentBySemester);

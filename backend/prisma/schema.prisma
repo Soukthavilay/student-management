@@ -68,6 +68,7 @@ model Department {
   lecturers     Lecturer[]
   subjects      Subject[]
   announcements Announcement[]
+  curriculum    Curriculum?
 }
 
 model ClassGroup {
@@ -92,6 +93,8 @@ model Student {
   classGroupId Int
   phone        String?
   address      String?
+
+  currentSemester Int @default(1)
 
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   department  Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
@@ -123,10 +126,36 @@ model Subject {
   credits      Int
   departmentId Int
 
-  department Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  sections   Section[]
+  department         Department          @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  sections           Section[]
+  curriculumSubjects CurriculumSubject[]
 
   @@index([departmentId])
+}
+
+model Curriculum {
+  id           Int    @id @default(autoincrement())
+  departmentId Int    @unique
+  name         String
+  totalSemesters Int  @default(4)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  department Department          @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  subjects   CurriculumSubject[]
+}
+
+model CurriculumSubject {
+  id           Int @id @default(autoincrement())
+  curriculumId Int
+  subjectId    Int
+  semester     Int
+
+  curriculum Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  subject    Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([curriculumId, subjectId])
+  @@index([curriculumId, semester])
 }
 
 model Section {

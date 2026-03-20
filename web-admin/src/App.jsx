@@ -11,6 +11,9 @@ import AnnouncementsPage from "./pages/AnnouncementsPage";
 import StudentDetailPage from "./pages/StudentDetailPage";
 import LecturerDetailPage from "./pages/LecturerDetailPage";
 import LecturerGradesPage from "./pages/LecturerGradesPage";
+import LecturerTimetablePage from "./pages/LecturerTimetablePage";
+import LecturerAnnouncementsPage from "./pages/LecturerAnnouncementsPage";
+import CurriculumPage from "./pages/CurriculumPage";
 
 export default function App() {
   return (
@@ -27,11 +30,14 @@ export default function App() {
             <Route path="/lecturers" element={<LecturersPage />} />
             <Route path="/lecturers/:id" element={<LecturerDetailPage />} />
             <Route path="/academics" element={<AcademicsPage />} />
+            <Route path="/curriculum" element={<CurriculumPage />} />
             <Route path="/assignments" element={<AssignmentsPage />} />
             <Route path="/announcements" element={<AnnouncementsPage />} />
           </Route>
 
           <Route element={<ProtectedRoute roles={["LECTURER"]} />}>
+            <Route path="/lecturer/timetable" element={<LecturerTimetablePage />} />
+            <Route path="/lecturer/announcements" element={<LecturerAnnouncementsPage />} />
             <Route path="/lecturer/grades" element={<LecturerGradesPage />} />
           </Route>
 

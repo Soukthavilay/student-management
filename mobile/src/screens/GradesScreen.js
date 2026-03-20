@@ -6,6 +6,7 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,8 +16,8 @@ import { getCached, setCache } from '../services/cache';
 import { Colors, Spacing, FontSize, BorderRadius } from '../constants/theme';
 
 function getLetterGrade(gpa) {
-  if (gpa >= 3.6) return 'A';
-  if (gpa >= 3.2) return 'A-';
+  if (gpa >= 3.6) return 'A+';
+  if (gpa >= 3.2) return 'A';
   if (gpa >= 2.5) return 'B';
   if (gpa >= 2.0) return 'C';
   if (gpa >= 1.0) return 'D';
@@ -29,11 +30,196 @@ function getGradeColor(gpa, colors) {
   return colors.error;
 }
 
+function getStatusText(status, enrollment) {
+  if (!enrollment) return 'Chưa đăng ký';
+  if (!enrollment.grade) return 'Đang học';
+  if (enrollment.grade.status === 'PASSED' || enrollment.grade.gpaPoint >= 1.0) return 'Đạt';
+  if (enrollment.grade.status === 'FAILED' || enrollment.grade.gpaPoint < 1.0) return 'Không đạt';
+  return 'Đang học';
+}
+
+function getStatusColor(status, enrollment, colors) {
+  if (!enrollment) return colors.textTertiary;
+  if (!enrollment.grade) return colors.info || colors.primary;
+  if (enrollment.grade.status === 'PASSED' || enrollment.grade.gpaPoint >= 1.0) return colors.success;
+  if (enrollment.grade.status === 'FAILED' || enrollment.grade.gpaPoint < 1.0) return colors.error;
+  return colors.warning;
+}
+
+function SemesterSection({ semester, curriculumSubjects, enrollments, colors, isDark }) {
+  const [expanded, setExpanded] = useState(true);
+
+  // Match curriculum subjects with enrollments
+  const semesterItems = curriculumSubjects.map(cs => {
+    const enrollment = enrollments.find(e => e.section?.subject?.id === cs.subject.id);
+    return {
+      curriculumSubject: cs,
+      enrollment: enrollment || null,
+    };
+  });
+
+  const enrolledCount = semesterItems.filter(item => item.enrollment).length;
+  const totalCredits = semesterItems
+    .filter(item => item.enrollment)
+    .reduce((sum, item) => sum + (item.enrollment.section?.subject?.credits || 0), 0);
+
+  const gradedItems = semesterItems.filter(item => item.enrollment?.grade?.gpaPoint != null);
+  const semesterGPA = gradedItems.length > 0
+    ? (gradedItems.reduce((sum, item) => sum + item.enrollment.grade.gpaPoint * (item.enrollment.section?.subject?.credits || 0), 0) /
+       gradedItems.reduce((sum, item) => sum + (item.enrollment.section?.subject?.credits || 0), 0))
+    : null;
+
+  return (
+    <View style={[styles.semesterContainer, { backgroundColor: colors.card, shadowColor: colors.cardShadow }]}>
+      <TouchableOpacity
+        style={[styles.semesterHeader, { backgroundColor: isDark ? colors.card : '#F8FAFC' }]}
+        onPress={() => setExpanded(!expanded)}
+      >
+        <View style={styles.semesterHeaderLeft}>
+          <Text style={[styles.semesterTitle, { color: colors.text }]}>
+            Học kỳ {semester}
+          </Text>
+          <Text style={[styles.semesterSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
+            {enrolledCount}/{curriculumSubjects.length} môn • {totalCredits} tín chỉ
+          </Text>
+        </View>
+        <View style={styles.semesterHeaderRight}>
+          {semesterGPA !== null && (
+            <View style={[styles.gpaBadge, { backgroundColor: getGradeColor(semesterGPA, colors) + '20' }]}>
+              <Text style={[styles.gpaBadgeText, { color: getGradeColor(semesterGPA, colors) }]}>
+                GPA {semesterGPA.toFixed(2)}
+              </Text>
+            </View>
+          )}
+          <Ionicons
+            name={expanded ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginLeft: Spacing.sm }}
+          />
+        </View>
+      </TouchableOpacity>
+
+      {expanded && (
+        <View style={styles.semesterContent}>
+          {semesterItems.map(({ curriculumSubject, enrollment }) => {
+            const hasGrade = enrollment?.grade?.finalScore != null;
+            const statusText = getStatusText(null, enrollment);
+            const statusColor = getStatusColor(null, enrollment, colors);
+
+            return (
+              <View
+                key={curriculumSubject.subject.id}
+                style={[styles.subjectRow, { borderBottomColor: colors.border }]}
+              >
+                <View style={styles.subjectInfo}>
+                  <Text style={[styles.subjectName, { color: colors.text }]} numberOfLines={1}>
+                    {curriculumSubject.subject.name}
+                  </Text>
+                  <Text style={[styles.subjectCode, { color: colors.textSecondary }]}>
+                    {curriculumSubject.subject.code} • {curriculumSubject.subject.credits} TC
+                    {enrollment ? ` • ${enrollment.section?.code}` : ''}
+                  </Text>
+                </View>
+
+                <View style={styles.gradeInfo}>
+                  {hasGrade ? (
+                    <>
+                      <View style={[styles.letterBadge, { backgroundColor: getGradeColor(enrollment.grade.gpaPoint, colors) + '20' }]}>
+                        <Text style={[styles.letterText, { color: getGradeColor(enrollment.grade.gpaPoint, colors) }]}>
+                          {getLetterGrade(enrollment.grade.gpaPoint)}
+                        </Text>
+                      </View>
+                      <Text style={[styles.scoreText, { color: colors.text }]}>
+                        {enrollment.grade.finalScore.toFixed(1)}
+                      </Text>
+                    </>
+                  ) : (
+                    <View style={[styles.statusBadge, { backgroundColor: statusColor + '15' }]}>
+                      <Text style={[styles.statusBadgeText, { color: statusColor }]}>
+                        {statusText}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function ExtraCoursesSection({ enrollments, colors, isDark }) {
+  if (enrollments.length === 0) return null;
+
+  return (
+    <View style={[styles.semesterContainer, { backgroundColor: colors.card, shadowColor: colors.cardShadow }]}>
+      <View style={[styles.semesterHeader, { backgroundColor: isDark ? '#3D3D1F' : '#FEFCE8' }]}>
+        <View style={styles.semesterHeaderLeft}>
+          <Text style={[styles.semesterTitle, { color: isDark ? '#FEF08A' : '#854D0E' }]}>
+            Môn học ngoài chương trình
+          </Text>
+          <Text style={[styles.semesterSubtitle, { color: isDark ? '#FDE047' : '#A16207' }]}>
+            {enrollments.length} môn học
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.semesterContent}>
+        {enrollments.map((enrollment) => {
+          const grade = enrollment.grade;
+          const hasGrade = grade && grade.finalScore != null;
+
+          return (
+            <View
+              key={enrollment.id}
+              style={[styles.subjectRow, { borderBottomColor: colors.border }]}
+            >
+              <View style={styles.subjectInfo}>
+                <Text style={[styles.subjectName, { color: colors.text }]} numberOfLines={1}>
+                  {enrollment.section?.subject?.name}
+                </Text>
+                <Text style={[styles.subjectCode, { color: colors.textSecondary }]}>
+                  {enrollment.section?.subject?.code} • {enrollment.section?.subject?.credits} TC
+                  {' • '}{enrollment.section?.semester} / {enrollment.section?.academicYear}
+                </Text>
+              </View>
+
+              <View style={styles.gradeInfo}>
+                {hasGrade ? (
+                  <>
+                    <View style={[styles.letterBadge, { backgroundColor: getGradeColor(grade.gpaPoint, colors) + '20' }]}>
+                      <Text style={[styles.letterText, { color: getGradeColor(grade.gpaPoint, colors) }]}>
+                        {getLetterGrade(grade.gpaPoint)}
+                      </Text>
+                    </View>
+                    <Text style={[styles.scoreText, { color: colors.text }]}>
+                      {grade.finalScore.toFixed(1)}
+                    </Text>
+                  </>
+                ) : (
+                  <View style={[styles.statusBadge, { backgroundColor: (colors.info || colors.primary) + '15' }]}>
+                    <Text style={[styles.statusBadgeText, { color: colors.info || colors.primary }]}>
+                      Đang học
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 export default function GradesScreen() {
   const { isDark } = useAuth();
   const colors = isDark ? Colors.dark : Colors.light;
 
-  const [gradesData, setGradesData] = useState({ cumulativeGpa: 0, grades: [] });
+  const [gradesData, setGradesData] = useState({ cumulativeGpa: 0, grades: [], curriculum: null });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -69,12 +255,23 @@ export default function GradesScreen() {
     );
   }
 
-  const { cumulativeGpa, grades } = gradesData;
+  const { cumulativeGpa, grades, curriculum } = gradesData;
+
+  // Find extra enrollments not in curriculum
+  const extraEnrollments = grades.filter(e => {
+    if (!curriculum) return true;
+    return !curriculum.subjects.some(cs => cs.subject.id === e.section?.subject?.id);
+  });
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <Text style={styles.headerTitle}>Bảng Điểm</Text>
+        {curriculum && (
+          <Text style={styles.curriculumName} numberOfLines={1}>
+            {curriculum.name}
+          </Text>
+        )}
 
         <View style={[styles.gpaCircle, { backgroundColor: colors.gpaCircleBg }]}>
           <Text style={[styles.gpaValue, { color: colors.gpaCircleStroke }]}>
@@ -90,97 +287,42 @@ export default function GradesScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
-        {grades.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="school-outline" size={64} color={colors.textTertiary} />
-            <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
-              Chưa có điểm
+        {!curriculum ? (
+          <View style={[styles.emptyState, { backgroundColor: colors.card }]}>
+            <Ionicons name="school-outline" size={48} color={colors.textTertiary} />
+            <Text style={[styles.emptyText, { color: colors.textSecondary, marginTop: Spacing.md }]}>
+              Khoa chưa có chương trình đào tạo
+            </Text>
+            <Text style={[styles.emptySubtext, { color: colors.textTertiary }]}>
+              Vui lòng liên hệ phòng đào tạo
             </Text>
           </View>
         ) : (
-          grades.map((item) => {
-            const grade = item.grade;
-            const hasGrade = grade && grade.finalScore != null;
+          <>
+            {/* Curriculum semesters */}
+            {Array.from({ length: curriculum.totalSemesters }, (_, i) => i + 1).map((semester) => {
+              const semesterSubjects = curriculum.subjects.filter(cs => cs.semester === semester);
+              if (semesterSubjects.length === 0) return null;
 
-            return (
-              <View
-                key={item.id}
-                style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.cardShadow }]}
-              >
-                <View style={styles.cardHeader}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.subjectName, { color: colors.text }]} numberOfLines={2}>
-                      {item.section?.subject?.name || ''}
-                    </Text>
-                    <Text style={[styles.subjectCode, { color: colors.textSecondary }]}>
-                      {item.section?.subject?.code} — {item.section?.code} — {item.section?.subject?.credits} TC
-                    </Text>
-                  </View>
-                  {hasGrade && (
-                    <View style={[styles.letterBadge, { backgroundColor: getGradeColor(grade.gpaPoint, colors) + '20' }]}>
-                      <Text style={[styles.letterText, { color: getGradeColor(grade.gpaPoint, colors) }]}>
-                        {getLetterGrade(grade.gpaPoint)}
-                      </Text>
-                    </View>
-                  )}
-                </View>
+              return (
+                <SemesterSection
+                  key={semester}
+                  semester={semester}
+                  curriculumSubjects={semesterSubjects}
+                  enrollments={grades}
+                  colors={colors}
+                  isDark={isDark}
+                />
+              );
+            })}
 
-                {hasGrade ? (
-                  <>
-                    {grade.components && grade.components.length > 0 && (
-                      <View style={[styles.componentsList, { borderTopColor: colors.border }]}>
-                        {grade.components.map((comp) => (
-                          <View key={comp.id} style={styles.componentRow}>
-                            <Text style={[styles.componentName, { color: colors.textSecondary }]}>
-                              {comp.name} ({(comp.weight * 100).toFixed(0)}%)
-                            </Text>
-                            <Text style={[styles.componentScore, { color: colors.text }]}>
-                              {comp.score.toFixed(1)}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                    <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
-                      <Text style={[styles.totalLabel, { color: colors.text }]}>Điểm tổng</Text>
-                      <Text style={[styles.totalScore, { color: colors.primary }]}>
-                        {grade.finalScore.toFixed(1)} / {grade.gpaPoint.toFixed(1)}
-                      </Text>
-                    </View>
-                    <View style={styles.statusRow}>
-                      <View
-                        style={[
-                          styles.statusBadge,
-                          {
-                            backgroundColor:
-                              grade.status === 'SUBMITTED'
-                                ? colors.success + '20'
-                                : colors.warning + '20',
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.statusText,
-                            {
-                              color:
-                                grade.status === 'SUBMITTED' ? colors.success : colors.warning,
-                            },
-                          ]}
-                        >
-                          {grade.status === 'SUBMITTED' ? 'Đã nộp' : 'Nháp'}
-                        </Text>
-                      </View>
-                    </View>
-                  </>
-                ) : (
-                  <Text style={[styles.noGrade, { color: colors.textTertiary }]}>
-                    Chưa có điểm
-                  </Text>
-                )}
-              </View>
-            );
-          })
+            {/* Extra courses */}
+            <ExtraCoursesSection
+              enrollments={extraEnrollments}
+              colors={colors}
+              isDark={isDark}
+            />
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -201,8 +343,15 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xxl,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: Spacing.lg,
     alignSelf: 'flex-start',
+  },
+  curriculumName: {
+    fontSize: FontSize.sm,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.8)',
+    alignSelf: 'flex-start',
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.lg,
   },
   gpaCircle: {
     width: 100,
@@ -224,96 +373,114 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing.xxxl,
   },
-  card: {
+  semesterContainer: {
     borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
     marginBottom: Spacing.md,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
+    overflow: 'hidden',
   },
-  cardHeader: {
+  semesterHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  subjectName: {
-    fontSize: FontSize.md,
-    fontWeight: '600',
-    marginBottom: Spacing.xs,
-  },
-  subjectCode: {
-    fontSize: FontSize.xs,
-  },
-  letterBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
   },
-  letterText: {
-    fontSize: FontSize.lg,
-    fontWeight: '800',
+  semesterHeaderLeft: {
+    flex: 1,
   },
-  componentsList: {
-    borderTopWidth: 1,
-    marginTop: Spacing.md,
-    paddingTop: Spacing.md,
-  },
-  componentRow: {
+  semesterHeaderRight: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.sm,
+    alignItems: 'center',
   },
-  componentName: {
-    fontSize: FontSize.sm,
-  },
-  componentScore: {
-    fontSize: FontSize.sm,
-    fontWeight: '600',
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    paddingTop: Spacing.md,
-    marginTop: Spacing.sm,
-  },
-  totalLabel: {
+  semesterTitle: {
     fontSize: FontSize.md,
     fontWeight: '700',
   },
-  totalScore: {
-    fontSize: FontSize.md,
-    fontWeight: '700',
+  semesterSubtitle: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
   },
-  statusRow: {
-    marginTop: Spacing.md,
-  },
-  statusBadge: {
-    alignSelf: 'flex-start',
+  gpaBadge: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,
   },
-  statusText: {
+  gpaBadgeText: {
     fontSize: FontSize.xs,
     fontWeight: '700',
   },
-  noGrade: {
-    fontSize: FontSize.sm,
-    fontStyle: 'italic',
-    marginTop: Spacing.md,
+  semesterContent: {
+    paddingHorizontal: Spacing.lg,
+  },
+  subjectRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+  },
+  subjectInfo: {
+    flex: 1,
+    paddingRight: Spacing.md,
+  },
+  subjectName: {
+    fontSize: FontSize.md,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  subjectCode: {
+    fontSize: FontSize.xs,
+  },
+  gradeInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  letterBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  letterText: {
+    fontSize: FontSize.md,
+    fontWeight: '800',
+  },
+  scoreText: {
+    fontSize: FontSize.md,
+    fontWeight: '700',
+    minWidth: 40,
+    textAlign: 'right',
+  },
+  statusBadge: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+  },
+  statusBadgeText: {
+    fontSize: FontSize.xs,
+    fontWeight: '600',
   },
   emptyState: {
     alignItems: 'center',
-    marginTop: 100,
+    justifyContent: 'center',
+    marginTop: Spacing.xxl,
+    padding: Spacing.xl,
+    borderRadius: BorderRadius.lg,
   },
   emptyText: {
     fontSize: FontSize.md,
-    marginTop: Spacing.lg,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: FontSize.sm,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
   },
 });

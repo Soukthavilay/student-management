@@ -5,12 +5,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { Colors, Spacing, FontSize, BorderRadius } from '../constants/theme';
 
 export default function ProfileScreen() {
   const { user, isDark, logout, toggleDarkMode } = useAuth();
+  const navigation = useNavigation();
   const colors = isDark ? Colors.dark : Colors.light;
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -146,6 +148,16 @@ export default function ProfileScreen() {
               <Switch value={isDark} onValueChange={toggleDarkMode} trackColor={{ false: colors.border, true: colors.accent }} />
             </View>
           </View>
+
+          {/* Curriculum Button */}
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: colors.card, shadowColor: colors.cardShadow }]}
+            onPress={() => navigation.navigate('Curriculum')}
+          >
+            <Ionicons name="school-outline" size={20} color={colors.accent} />
+            <Text style={[styles.actionLabel, { color: colors.text }]}>Chương trình đào tạo</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+          </TouchableOpacity>
 
           {/* Action Buttons */}
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.card, shadowColor: colors.cardShadow }]} onPress={handleChangePassword}>

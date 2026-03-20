@@ -7,12 +7,15 @@ const adminLinks = [
   { to: "/students", label: "Sinh viên" },
   { to: "/lecturers", label: "Giảng viên" },
   { to: "/academics", label: "Đào tạo" },
+  { to: "/curriculum", label: "Chương trình ĐT" },
   { to: "/assignments", label: "Phân công" },
   { to: "/announcements", label: "Thông báo" },
 ];
 
 const lecturerLinks = [
   { to: "/dashboard", label: "Dashboard" },
+  { to: "/lecturer/timetable", label: "Thời khóa biểu" },
+  { to: "/lecturer/announcements", label: "Thông báo" },
   { to: "/lecturer/grades", label: "Nhập điểm" },
 ];
 

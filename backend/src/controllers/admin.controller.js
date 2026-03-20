@@ -773,7 +773,22 @@ export async function getStudentDetail(req, res, next) {
       throw notFound("Sinh viên không tồn tại");
     }
 
-    return res.json({ data: student });
+    // Fetch curriculum for the student's department
+    const curriculum = await prisma.curriculum.findUnique({
+      where: { departmentId: student.departmentId },
+      include: {
+        subjects: {
+          include: {
+            subject: {
+              select: { id: true, code: true, name: true, credits: true },
+            },
+          },
+          orderBy: [{ semester: "asc" }, { id: "asc" }],
+        },
+      },
+    });
+
+    return res.json({ data: { ...student, curriculum } });
   } catch (error) {
     return next(error);
   }
@@ -1203,6 +1218,225 @@ export async function createEnrollment(req, res, next) {
     });
 
     return res.status(201).json({ data: enrollment });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getCurriculum(req, res, next) {
+  try {
+    const departmentId = Number(req.query.departmentId);
+    if (!departmentId) {
+      throw badRequest("departmentId is required");
+    }
+
+    const curriculum = await prisma.curriculum.findUnique({
+      where: { departmentId },
+      include: {
+        subjects: {
+          include: {
+            subject: {
+              select: { id: true, code: true, name: true, credits: true },
+            },
+          },
+          orderBy: [{ semester: "asc" }, { id: "asc" }],
+        },
+        department: { select: { id: true, code: true, name: true } },
+      },
+    });
+
+    return res.json({ data: curriculum });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function upsertCurriculum(req, res, next) {
+  try {
+    const { departmentId, name, totalSemesters } = req.body;
+
+    const department = await prisma.department.findUnique({ where: { id: departmentId } });
+    if (!department) {
+      throw notFound("Khoa không tồn tại");
+    }
+
+    const curriculum = await prisma.curriculum.upsert({
+      where: { departmentId },
+      update: { name, totalSemesters },
+      create: { departmentId, name, totalSemesters },
+      include: {
+        subjects: {
+          include: {
+            subject: {
+              select: { id: true, code: true, name: true, credits: true },
+            },
+          },
+          orderBy: [{ semester: "asc" }, { id: "asc" }],
+        },
+        department: { select: { id: true, code: true, name: true } },
+      },
+    });
+
+    await createAuditLog({
+      userId: req.user.id,
+      action: "UPSERT_CURRICULUM",
+      entity: "Curriculum",
+      entityId: curriculum.id,
+      metadata: { departmentId, name, totalSemesters },
+    });
+
+    return res.json({ data: curriculum });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function addCurriculumSubject(req, res, next) {
+  try {
+    const { curriculumId, subjectId, semester } = req.body;
+
+    const curriculum = await prisma.curriculum.findUnique({ where: { id: curriculumId } });
+    if (!curriculum) {
+      throw notFound("Chương trình đào tạo không tồn tại");
+    }
+
+    if (semester < 1 || semester > curriculum.totalSemesters) {
+      throw badRequest(`Học kỳ phải từ 1 đến ${curriculum.totalSemesters}`);
+    }
+
+    const subject = await prisma.subject.findUnique({ where: { id: subjectId } });
+    if (!subject) {
+      throw notFound("Môn học không tồn tại");
+    }
+
+    const existing = await prisma.curriculumSubject.findUnique({
+      where: { curriculumId_subjectId: { curriculumId, subjectId } },
+    });
+    if (existing) {
+      throw badRequest("Môn học đã có trong chương trình đào tạo");
+    }
+
+    const created = await prisma.curriculumSubject.create({
+      data: { curriculumId, subjectId, semester },
+      include: {
+        subject: {
+          select: { id: true, code: true, name: true, credits: true },
+        },
+      },
+    });
+
+    await createAuditLog({
+      userId: req.user.id,
+      action: "ADD_CURRICULUM_SUBJECT",
+      entity: "CurriculumSubject",
+      entityId: created.id,
+      metadata: { curriculumId, subjectId, semester },
+    });
+
+    return res.status(201).json({ data: created });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function removeCurriculumSubject(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    await prisma.curriculumSubject.delete({
+      where: { id: Number(id) },
+    });
+
+    return res.json({ message: "Xóa môn học khỏi chương trình đào tạo thành công" });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function enrollStudentBySemester(req, res, next) {
+  try {
+    const { studentId, semester, academicYear } = req.body;
+
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      include: { department: true },
+    });
+    if (!student) {
+      throw notFound("Sinh viên không tồn tại");
+    }
+
+    const curriculum = await prisma.curriculum.findUnique({
+      where: { departmentId: student.departmentId },
+      include: {
+        subjects: {
+          where: { semester },
+          include: { subject: true },
+        },
+      },
+    });
+
+    if (!curriculum) {
+      throw badRequest("Khoa chưa có chương trình đào tạo");
+    }
+
+    if (curriculum.subjects.length === 0) {
+      throw badRequest(`Chương trình đào tạo chưa có môn học cho kỳ ${semester}`);
+    }
+
+    const sections = await prisma.section.findMany({
+      where: {
+        subjectId: { in: curriculum.subjects.map((cs) => cs.subjectId) },
+        classGroupId: student.classGroupId,
+        semester: `HK${semester}`,
+        academicYear,
+      },
+    });
+
+    if (sections.length === 0) {
+      throw badRequest(`Chưa có học phần nào mở cho kỳ ${semester}, năm học ${academicYear}, lớp của sinh viên`);
+    }
+
+    const existingEnrollments = await prisma.enrollment.findMany({
+      where: {
+        studentId,
+        sectionId: { in: sections.map((s) => s.id) },
+      },
+    });
+    const enrolledSectionIds = new Set(existingEnrollments.map((e) => e.sectionId));
+
+    const newSections = sections.filter((s) => !enrolledSectionIds.has(s.id));
+
+    if (newSections.length === 0) {
+      throw badRequest("Sinh viên đã đăng ký tất cả học phần của kỳ này");
+    }
+
+    const enrollments = await prisma.$transaction(
+      newSections.map((s) =>
+        prisma.enrollment.create({
+          data: { sectionId: s.id, studentId },
+        })
+      )
+    );
+
+    await prisma.student.update({
+      where: { id: studentId },
+      data: { currentSemester: semester },
+    });
+
+    await createAuditLog({
+      userId: req.user.id,
+      action: "ENROLL_BY_SEMESTER",
+      entity: "Enrollment",
+      entityId: studentId,
+      metadata: { semester, academicYear, enrolledCount: enrollments.length },
+    });
+
+    return res.status(201).json({
+      data: {
+        enrolledCount: enrollments.length,
+        enrollments,
+      },
+    });
   } catch (error) {
     return next(error);
   }

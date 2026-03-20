@@ -222,3 +222,30 @@ export const createEnrollmentSchema = z.object({
     sectionId: z.coerce.number().int().positive(),
   }),
 });
+
+export const upsertCurriculumSchema = z.object({
+  ...baseEnvelope,
+  body: z.object({
+    departmentId: z.coerce.number().int().positive(),
+    name: z.string().min(2, "Tên CTĐT phải có ít nhất 2 ký tự"),
+    totalSemesters: z.coerce.number().int().min(1).max(12).default(4),
+  }),
+});
+
+export const addCurriculumSubjectSchema = z.object({
+  ...baseEnvelope,
+  body: z.object({
+    curriculumId: z.coerce.number().int().positive(),
+    subjectId: z.coerce.number().int().positive(),
+    semester: z.coerce.number().int().min(1).max(12),
+  }),
+});
+
+export const enrollBySemesterSchema = z.object({
+  ...baseEnvelope,
+  body: z.object({
+    studentId: z.coerce.number().int().positive(),
+    semester: z.coerce.number().int().min(1).max(12),
+    academicYear: z.string().min(4),
+  }),
+});

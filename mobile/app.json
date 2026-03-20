@@ -24,7 +24,8 @@
       "package": "com.school.studentmanagement"
     },
     "extra": {
-      "apiBaseUrl": "http://192.168.100.9:4000/api"
+      // "apiBaseUrl": "http://192.168.100.9:4000/api"
+      "apiBaseUrl": "http://192.168.1.118:4000/api"
     },
     "plugins": [
       "expo-secure-store",

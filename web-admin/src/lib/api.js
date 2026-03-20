@@ -51,11 +51,24 @@ export const api = {
     updateLecturer: (id, payload) => http.put(`/admin/lecturers/${id}`, payload),
     assignLecturer: (payload) => http.post("/admin/assignments", payload),
     createAnnouncement: (payload) => http.post("/admin/announcements", payload),
+
+    getCurriculum: (departmentId) =>
+      http.get("/admin/curriculum", { params: { departmentId } }),
+    upsertCurriculum: (payload) => http.post("/admin/curriculum", payload),
+    addCurriculumSubject: (payload) =>
+      http.post("/admin/curriculum/subjects", payload),
+    removeCurriculumSubject: (id) =>
+      http.delete(`/admin/curriculum/subjects/${id}`),
+    enrollBySemester: (payload) =>
+      http.post("/admin/enrollments/semester", payload),
   },
   lecturer: {
     sections: () => http.get("/lecturer/sections"),
+    timetable: () => http.get("/lecturer/timetable"),
     sectionStudents: (sectionId) => http.get(`/lecturer/sections/${sectionId}/students`),
     upsertGrade: (payload) => http.put("/lecturer/grades", payload),
     submitGrade: (payload) => http.post("/lecturer/grades/submit", payload),
+    announcements: () => http.get("/lecturer/announcements"),
+    createAnnouncement: (payload) => http.post("/lecturer/announcements", payload),
   },
 };

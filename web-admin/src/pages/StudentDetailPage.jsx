@@ -1,10 +1,172 @@
 import { useParams, Link } from "react-router-dom";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
   return new Date(dateStr).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function SemesterTable({ semester, curriculumSubjects, enrollments, allEnrollments }) {
+  // Find enrollments for this semester's subjects
+  const semesterEnrollments = curriculumSubjects.map(cs => {
+    const enrollment = enrollments.find(e => e.section?.subject?.id === cs.subject.id);
+    return {
+      curriculumSubject: cs,
+      enrollment: enrollment || null,
+    };
+  });
+
+  // Also include enrollments that don't match curriculum (electives or extras)
+  const extraEnrollments = enrollments.filter(e => 
+    !curriculumSubjects.some(cs => cs.subject.id === e.section?.subject?.id)
+  );
+
+  const totalCredits = semesterEnrollments
+    .filter(e => e.enrollment)
+    .reduce((sum, e) => sum + (e.enrollment.section?.subject?.credits || 0), 0);
+
+  const gradedEnrollments = semesterEnrollments.filter(e => e.enrollment?.grade);
+  const semesterGPA = gradedEnrollments.length > 0
+    ? (gradedEnrollments.reduce((s, e) => s + (e.enrollment.grade?.gpaPoint || 0) * (e.enrollment.section?.subject?.credits || 0), 0) /
+       gradedEnrollments.reduce((s, e) => s + (e.enrollment.section?.subject?.credits || 0), 0)).toFixed(2)
+    : null;
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+      <div className="flex items-center justify-between bg-slate-50 px-5 py-3 border-b border-slate-200">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold text-slate-700">Học kỳ {semester}</span>
+          <span className="text-xs text-slate-500">
+            {semesterEnrollments.filter(e => e.enrollment).length}/{semesterEnrollments.length} môn học
+          </span>
+        </div>
+        <div className="flex items-center gap-4 text-sm">
+          <span className="text-slate-500">
+            Tín chỉ: <span className="font-medium text-slate-700">{totalCredits}</span>
+          </span>
+          {semesterGPA && (
+            <span className="text-slate-500">
+              GPA: <span className="font-medium text-slate-700">{semesterGPA}</span>
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400 bg-slate-50/50">
+              <th className="px-5 py-3 font-medium">Mã môn</th>
+              <th className="px-5 py-3 font-medium">Tên môn học</th>
+              <th className="px-5 py-3 font-medium">Tín chỉ</th>
+              <th className="px-5 py-3 font-medium">Học phần</th>
+              <th className="px-5 py-3 font-medium">Điểm</th>
+              <th className="px-5 py-3 font-medium">GPA</th>
+              <th className="px-5 py-3 font-medium">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            {semesterEnrollments.map(({ curriculumSubject, enrollment }) => (
+              <tr key={curriculumSubject.subject.id} className="border-t border-slate-50 hover:bg-slate-50">
+                <td className="px-5 py-3 font-mono text-xs text-slate-600">{curriculumSubject.subject.code}</td>
+                <td className="px-5 py-3">
+                  <span className="font-medium text-slate-800">{curriculumSubject.subject.name}</span>
+                </td>
+                <td className="px-5 py-3 text-slate-600">{curriculumSubject.subject.credits}</td>
+                <td className="px-5 py-3">
+                  {enrollment ? (
+                    <span className="font-mono text-xs text-slate-600">{enrollment.section?.code}</span>
+                  ) : (
+                    <span className="text-xs text-slate-400">-</span>
+                  )}
+                </td>
+                <td className="px-5 py-3 font-medium">
+                  {enrollment?.grade ? enrollment.grade.finalScore?.toFixed(1) : "-"}
+                </td>
+                <td className="px-5 py-3 font-medium">
+                  {enrollment?.grade ? enrollment.grade.gpaPoint?.toFixed(1) : "-"}
+                </td>
+                <td className="px-5 py-3">
+                  {!enrollment ? (
+                    <span className="rounded px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-500">
+                      Chưa đăng ký
+                    </span>
+                  ) : enrollment.grade?.status === "PASSED" ? (
+                    <span className="rounded px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700">
+                      Đạt
+                    </span>
+                  ) : enrollment.grade?.status === "FAILED" ? (
+                    <span className="rounded px-2 py-0.5 text-xs font-medium bg-red-50 text-red-700">
+                      Không đạt
+                    </span>
+                  ) : (
+                    <span className="rounded px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700">
+                      Đang học
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ExtraCoursesTable({ enrollments }) {
+  if (enrollments.length === 0) return null;
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+      <div className="flex items-center justify-between bg-amber-50 px-5 py-3 border-b border-amber-200">
+        <span className="text-sm font-semibold text-amber-800">Môn học ngoài chương trình</span>
+        <span className="text-xs text-amber-600">{enrollments.length} môn học</span>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400 bg-slate-50/50">
+              <th className="px-5 py-3 font-medium">Mã HP</th>
+              <th className="px-5 py-3 font-medium">Môn học</th>
+              <th className="px-5 py-3 font-medium">Tín chỉ</th>
+              <th className="px-5 py-3 font-medium">Kỳ / Năm</th>
+              <th className="px-5 py-3 font-medium">Điểm</th>
+              <th className="px-5 py-3 font-medium">GPA</th>
+              <th className="px-5 py-3 font-medium">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            {enrollments.map((e) => (
+              <tr key={e.id} className="border-t border-slate-50 hover:bg-slate-50">
+                <td className="px-5 py-3 font-mono text-xs text-slate-600">{e.section?.code}</td>
+                <td className="px-5 py-3">
+                  <span className="font-medium text-slate-800">{e.section?.subject?.name}</span>
+                  <span className="ml-1 text-xs text-slate-400">{e.section?.subject?.code}</span>
+                </td>
+                <td className="px-5 py-3 text-slate-600">{e.section?.subject?.credits}</td>
+                <td className="px-5 py-3 text-slate-500">{e.section?.semester} / {e.section?.academicYear}</td>
+                <td className="px-5 py-3 font-medium">{e.grade ? e.grade.finalScore?.toFixed(1) : "-"}</td>
+                <td className="px-5 py-3 font-medium">{e.grade ? e.grade.gpaPoint?.toFixed(1) : "-"}</td>
+                <td className="px-5 py-3">
+                  <span className={`rounded px-2 py-0.5 text-xs font-medium ${
+                    e.grade?.status === "PASSED" ? "bg-green-50 text-green-700" :
+                    e.grade?.status === "FAILED" ? "bg-red-50 text-red-700" :
+                    "bg-slate-100 text-slate-500"
+                  }`}>
+                    {e.grade?.status === "PASSED" ? "Đạt" : e.grade?.status === "FAILED" ? "Không đạt" : "Đang học"}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 export default function StudentDetailPage() {
@@ -68,7 +230,7 @@ export default function StudentDetailPage() {
             { label: "Email", value: data.user.email },
             { label: "Khoa", value: data.department?.name || "-" },
             { label: "Lớp", value: data.classGroup ? `${data.classGroup.code} - ${data.classGroup.name}` : "-" },
-            { label: "Ngày tạo", value: formatDate(data.user.createdAt) },
+            { label: "Học kỳ hiện tại", value: data.currentSemester ? `Kỳ ${data.currentSemester}` : "Kỳ 1" },
           ].map((item) => (
             <div key={item.label} className="p-4">
               <p className="text-xs text-slate-400">{item.label}</p>
@@ -104,54 +266,47 @@ export default function StudentDetailPage() {
         </div>
       </div>
 
-      {/* Enrollments */}
-      <div className="rounded-lg border border-slate-200 bg-white p-5">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
-          Danh sách học phần ({data.enrollments?.length || 0})
-        </h2>
+      {/* Enrollments by Semester */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+            Bảng điểm theo chương trình đào tạo
+          </h2>
+          {data.curriculum && (
+            <span className="text-xs text-slate-500">
+              {data.curriculum.name}
+            </span>
+          )}
+        </div>
 
-        {(!data.enrollments || data.enrollments.length === 0) ? (
-          <p className="py-10 text-center text-sm text-slate-400">Chưa đăng ký học phần nào</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
-                  <th className="py-3 font-medium">Mã HP</th>
-                  <th className="py-3 font-medium">Môn học</th>
-                  <th className="py-3 font-medium">Tín chỉ</th>
-                  <th className="py-3 font-medium">Kỳ / Năm</th>
-                  <th className="py-3 font-medium">Điểm</th>
-                  <th className="py-3 font-medium">GPA</th>
-                  <th className="py-3 font-medium">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.enrollments.map((e) => (
-                  <tr key={e.id} className="border-t border-slate-50 hover:bg-slate-50">
-                    <td className="py-3 font-mono text-xs">{e.section?.code}</td>
-                    <td className="py-3">
-                      <span className="font-medium">{e.section?.subject?.name}</span>
-                      <span className="ml-1 text-xs text-slate-400">{e.section?.subject?.code}</span>
-                    </td>
-                    <td className="py-3">{e.section?.subject?.credits}</td>
-                    <td className="py-3 text-slate-500">{e.section?.semester} / {e.section?.academicYear}</td>
-                    <td className="py-3 font-medium">{e.grade ? e.grade.finalScore?.toFixed(1) : "-"}</td>
-                    <td className="py-3 font-medium">{e.grade ? e.grade.gpaPoint?.toFixed(1) : "-"}</td>
-                    <td className="py-3">
-                      <span className={`rounded px-2 py-0.5 text-xs font-medium ${
-                        e.grade?.status === "PASSED" ? "bg-green-50 text-green-700" :
-                        e.grade?.status === "FAILED" ? "bg-red-50 text-red-700" :
-                        "bg-slate-100 text-slate-500"
-                      }`}>
-                        {e.grade?.status === "PASSED" ? "Đạt" : e.grade?.status === "FAILED" ? "Không đạt" : "Đang học"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {!data.curriculum ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm text-amber-800">
+              Khoa chưa có chương trình đào tạo. Vui lòng thiết lập chương trình đào tạo cho khoa.
+            </p>
           </div>
+        ) : (
+          <>
+            {/* Group curriculum subjects by semester */}
+            {Array.from({ length: data.curriculum.totalSemesters }, (_, i) => i + 1).map((semester) => {
+              const semesterSubjects = data.curriculum.subjects.filter(cs => cs.semester === semester);
+              // If no subjects in curriculum for this semester, skip
+              if (semesterSubjects.length === 0) return null;
+              
+              return (
+                <SemesterTable
+                  key={semester}
+                  semester={semester}
+                  curriculumSubjects={semesterSubjects}
+                  enrollments={data.enrollments || []}
+                  allEnrollments={data.enrollments || []}
+                />
+              );
+            })}
+
+            {/* Show extra courses that don't match curriculum */}
+            <ExtraCoursesTable enrollments={data.enrollments || []} />
+          </>
         )}
       </div>
     </div>

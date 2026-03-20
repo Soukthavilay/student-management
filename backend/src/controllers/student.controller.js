@@ -24,7 +24,14 @@ export async function getProfile(req, res, next) {
         fullName: true,
         role: true,
         student: {
-          include: {
+          select: {
+            id: true,
+            studentCode: true,
+            phone: true,
+            address: true,
+            currentSemester: true,
+            departmentId: true,
+            classGroupId: true,
             department: {
               select: { id: true, code: true, name: true },
             },
@@ -83,10 +90,12 @@ export async function updateProfile(req, res, next) {
 export async function listTimetable(req, res, next) {
   try {
     const student = await getStudentOrThrow(req.user.id);
+    const semester = req.query.semester;
 
     const items = await prisma.enrollment.findMany({
       where: {
         studentId: student.id,
+        ...(semester ? { section: { semester } } : {}),
       },
       select: {
         section: {
@@ -191,6 +200,21 @@ export async function listGrades(req, res, next) {
   try {
     const student = await getStudentOrThrow(req.user.id);
 
+    // Fetch curriculum for the student's department
+    const curriculum = await prisma.curriculum.findUnique({
+      where: { departmentId: student.departmentId },
+      include: {
+        subjects: {
+          include: {
+            subject: {
+              select: { id: true, code: true, name: true, credits: true },
+            },
+          },
+          orderBy: [{ semester: "asc" }, { id: "asc" }],
+        },
+      },
+    });
+
     const grades = await prisma.enrollment.findMany({
       where: {
         studentId: student.id,
@@ -204,6 +228,7 @@ export async function listGrades(req, res, next) {
             academicYear: true,
             subject: {
               select: {
+                id: true,
                 code: true,
                 name: true,
                 credits: true,
@@ -245,6 +270,7 @@ export async function listGrades(req, res, next) {
     return res.json({
       cumulativeGpa,
       grades,
+      curriculum,
     });
   } catch (error) {
     return next(error);

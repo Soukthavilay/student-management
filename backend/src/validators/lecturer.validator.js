@@ -31,3 +31,15 @@ export const submitGradeSchema = z.object({
     enrollmentId: z.coerce.number().int().positive(),
   }),
 });
+
+export const createLecturerAnnouncementSchema = z.object({
+  params: z.object({}).passthrough(),
+  query: z.object({}).passthrough(),
+  body: z.object({
+    title: z.string().min(2, "Tiêu đề phải có ít nhất 2 ký tự"),
+    content: z.string().min(2, "Nội dung phải có ít nhất 2 ký tự"),
+    scope: z.enum(["CLASS", "SECTION"]),
+    classGroupId: z.coerce.number().int().positive().optional().nullable(),
+    sectionId: z.coerce.number().int().positive().optional().nullable(),
+  }),
+});
