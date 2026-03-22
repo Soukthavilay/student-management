@@ -1,19 +1,38 @@
 # Student Management App (Thực tập tốt nghiệp)
 
-Hệ thống quản lý sinh viên theo yêu cầu đồ án gồm 3 phần:
+Hệ thống quản lý sinh viên gồm 3 phần:
 
-1. **Mobile Sinh viên (iOS ưu tiên)**: React Native + Expo + NativeWind (Tailwind)
-2. **Web Admin/Giảng viên (đơn giản)**: React + Vite + Tailwind
+1. **Mobile Sinh viên**: React Native + Expo + NativeWind (Tailwind)
+2. **Web Admin/Giảng viên**: React + Vite + Tailwind
 3. **Backend API**: Node.js + Express + MySQL + Prisma
 
-Các yêu cầu đã triển khai:
+## Tính năng chính
 
-- Admin có API + web để quản lý sinh viên, giảng viên, môn/lớp/học phần, phân công giảng dạy, gửi thông báo.
-- Admin có thể tạo lịch học và lịch thi theo học phần.
-- Giảng viên có web để nhập điểm và nộp điểm.
-- Sinh viên dùng mobile để xem profile, lịch học, lịch thi, điểm, thông báo.
-- Push notification thật qua `expo-notifications` + backend gửi qua `expo-server-sdk`.
-- Hỗ trợ cache offline cơ bản cho lịch học/lịch thi/điểm ở mobile.
+### Admin (Web)
+
+- Quản lý khoa, lớp, môn học, lớp học phần
+- Quản lý sinh viên, giảng viên
+- Tạo lịch học, lịch thi
+- Phân công giảng viên
+- Gửi thông báo
+- Quản lý học phí
+
+### Giảng viên (Web)
+
+- Xem lớp dạy
+- Xem danh sách sinh viên
+- Nhập và nộp điểm
+- Gửi thông báo cho sinh viên
+
+### Sinh viên (Mobile)
+
+- Xem hồ sơ cá nhân
+- Đăng ký/hủy đăng ký học phần
+- Xem lịch học, lịch thi
+- Xem bảng điểm
+- Xem học phí
+- Nhận thông báo
+- Cache offline cho dữ liệu chính
 
 ---
 
@@ -50,106 +69,108 @@ Mặc định database được tạo theo `docker-compose.yml`:
 
 ---
 
-## 3) Backend setup
+## 3) Quick Start
+
+### 3.1 Khởi động Backend
 
 ```bash
-cp backend/.env.example backend/.env
-```
-
-Cập nhật `backend/.env`:
-
-- `DATABASE_URL`
-- `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`
-- `CORS_ORIGIN` (mặc định `http://localhost:5173`)
-- `EXPO_ACCESS_TOKEN` (nếu dùng EAS push token)
-
-Cài dependency và migrate:
-
-```bash
+# Cài dependency
 npm install --prefix backend
+
+# Setup database (nếu chưa có)
+docker compose up -d  # hoặc setup MySQL thủ công
+
+# Migrate schema
 npm run prisma:generate --prefix backend
 npm run prisma:push --prefix backend
-npm run prisma:seed --prefix backend
-npm run dev --prefix backend
+
+# Seed dữ liệu (3 tài khoản + dữ liệu test)
+node backend/clean-and-seed-minimal.js
+
+# Chạy backend
+npm run dev:backend
 ```
 
 Backend chạy tại: `http://localhost:4000`
 
-- Health: `GET /health`
-- Swagger: `GET /api-docs`
-
-### Tài khoản mẫu sau seed
-
-- Admin: `admin@school.edu.vn / Admin@123`
-- Giảng viên: `lecturer@school.edu.vn / Lecturer@123`
-- Sinh viên: `student@school.edu.vn / Student@123`
-
----
-
-## 4) Web Admin/Giảng viên setup
+### 3.2 Khởi động Web Admin
 
 ```bash
 npm install --prefix web-admin
-npm run dev --prefix web-admin
+npm run dev:web
 ```
 
 Web chạy tại: `http://localhost:5173`
 
-Nếu cần đổi API URL:
+### 3.3 Khởi động Mobile
+
+```bash
+npm install --prefix mobile
+npm run dev:mobile
+```
+
+Expo chạy tại: `http://localhost:8081`
+
+---
+
+## 4) Tài khoản Test
+
+Sau khi chạy `clean-and-seed-minimal.js`, có 3 tài khoản:
+
+| Role     | Email                     | Password       | Ghi chú          |
+| -------- | ------------------------- | -------------- | ---------------- |
+| Admin    | `admin@university.edu`    | `Admin@123`    | Quản lý web      |
+| Lecturer | `lecturer@university.edu` | `Lecturer@123` | Giảng viên web   |
+| Student  | `student@university.edu`  | `Student@123`  | Sinh viên mobile |
+
+### Dữ liệu Test
+
+- **1 Khoa**: CNTT
+- **1 Lớp**: CNTT-K20
+- **3 Môn học**: Java, DB, Network
+- **3 Lớp học phần**: JAVA101-01, DB101-01, NET101-01
+- **3 Phòng học**: A101, A102, A103
+- **9 Buổi học**: 3 buổi/lớp, không trùng lịch
+- **3 Lịch thi**: 15/12, 16/12, 17/12/2024
+- **Giá tín chỉ**: 500,000đ/TC
+
+---
+
+## 5) Cấu hình API URL
+
+### Web Admin
+
+Mặc định gọi `http://localhost:4000/api`. Nếu cần đổi:
 
 ```bash
 # web-admin/.env
 VITE_API_BASE_URL=http://localhost:4000/api
 ```
 
----
-
-## 5) Mobile setup (Expo)
-
-```bash
-npm install --prefix mobile
-npm run ios --prefix mobile
-```
-
-Mặc định mobile gọi API:
-
-- `mobile/app.json -> expo.extra.apiBaseUrl`
-
-Nếu chạy simulator iOS và backend local, bạn có thể cần đổi:
-
-- `http://127.0.0.1:4000/api` (trong simulator)
-- hoặc IP LAN máy dev, ví dụ `http://192.168.x.x:4000/api`
-
----
-
-## 6) Push Notification (FCM/APNs)
-
 ### Mobile
 
-- App yêu cầu quyền thông báo và đăng ký token tại màn hình **Thông báo**.
-- Token được gửi lên backend qua `POST /api/notifications/register-device`.
+Mặc định gọi `http://192.168.1.109:4000/api` (cấu hình trong `mobile/app.json`).
 
-### Backend
+Nếu chạy trên simulator hoặc máy khác, sửa:
 
-- Khi Admin tạo thông báo (`POST /api/admin/announcements`), backend:
-  - tạo thông báo in-app cho user mục tiêu,
-  - gửi push qua `expo-server-sdk` tới token hợp lệ.
-
-> Để push hoạt động ngoài môi trường dev, cần cấu hình đầy đủ credentials APNs/FCM theo tài liệu Expo/EAS.
-
----
-
-## 7) Test
-
-Hiện có test unit cho tính điểm:
-
-```bash
-npm test --prefix backend
+```json
+// mobile/app.json
+"extra": {
+  "apiBaseUrl": "http://localhost:4000/api"  // hoặc IP LAN
+}
 ```
 
 ---
 
-## 8) API chính
+## 6) Push Notification
+
+- Mobile yêu cầu quyền thông báo tại màn hình **Thông báo**
+- Token được đăng ký tự động với backend
+- Admin gửi thông báo → backend gửi push qua Expo
+
+---
+
+## 7) API chính
 
 ### Auth
 
@@ -158,40 +179,103 @@ npm test --prefix backend
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
 
-### Student (mobile)
+### Student (Mobile)
 
-- `GET /api/student/profile`
-- `PUT /api/student/profile`
-- `GET /api/student/timetable`
-- `GET /api/student/exams`
-- `GET /api/student/grades`
-- `GET /api/student/notifications`
-- `PATCH /api/student/notifications/:id/read`
+**Enrollment**
 
-### Admin (web)
+- `GET /api/student/enrollments/available` - Xem lớp học phần mở
+- `POST /api/student/enrollments` - Đăng ký lớp
+- `DELETE /api/student/enrollments/:sectionId` - Hủy đăng ký
 
-- `GET /api/admin/dashboard`
-- Quản lý sinh viên: `GET/POST/PUT /api/admin/students`
-- Quản lý giảng viên: `GET/POST/PUT /api/admin/lecturers`
-- Quản lý danh mục đào tạo:
-  - `GET/POST /api/admin/class-groups`
-  - `GET/POST /api/admin/subjects`
-  - `GET/POST /api/admin/sections`
-  - `POST /api/admin/schedules`
-  - `POST /api/admin/exams`
-- Phân công giảng viên: `POST /api/admin/assignments`
-- Thông báo: `POST /api/admin/announcements`
+**Timetable & Exams**
 
-### Lecturer (web)
+- `GET /api/student/timetable` - Xem lịch học
+- `GET /api/student/exams` - Xem lịch thi
 
-- `GET /api/lecturer/sections`
-- `GET /api/lecturer/sections/:sectionId/students`
-- `PUT /api/lecturer/grades`
-- `POST /api/lecturer/grades/submit`
+**Grades & Tuition**
+
+- `GET /api/student/grades` - Xem bảng điểm
+- `GET /api/student/tuition-fees` - Xem học phí
+
+**Profile & Notifications**
+
+- `GET /api/student/profile` - Xem hồ sơ
+- `PUT /api/student/profile` - Cập nhật hồ sơ
+- `GET /api/student/notifications` - Xem thông báo
+- `PATCH /api/student/notifications/:id/read` - Đánh dấu đã đọc
+
+### Admin (Web)
+
+**Dashboard & Quản lý**
+
+- `GET /api/admin/dashboard` - Dashboard
+- `GET/POST/PUT/DELETE /api/admin/students` - Quản lý sinh viên
+- `GET/POST/PUT/DELETE /api/admin/lecturers` - Quản lý giảng viên
+- `GET/POST/PUT/DELETE /api/admin/departments` - Quản lý khoa
+- `GET/POST/PUT/DELETE /api/admin/class-groups` - Quản lý lớp
+- `GET/POST/PUT/DELETE /api/admin/subjects` - Quản lý môn học
+- `GET/POST/PUT/DELETE /api/admin/semesters` - Quản lý học kỳ
+- `GET/POST/PUT/DELETE /api/admin/rooms` - Quản lý phòng học
+
+**Lớp học phần & Lịch**
+
+- `GET/POST/PUT/DELETE /api/admin/sections` - Quản lý lớp học phần
+- `POST /api/admin/schedules` - Tạo lịch học
+- `POST /api/admin/exams` - Tạo lịch thi
+- `POST /api/admin/assignments` - Phân công giảng viên
+
+**Học phí & Thông báo**
+
+- `GET/POST /api/admin/tuition-configs` - Cấu hình giá tín chỉ
+- `GET/POST /api/admin/tuition-fees` - Quản lý học phí
+- `POST /api/admin/announcements` - Gửi thông báo
+
+### Lecturer (Web)
+
+**Lớp & Sinh viên**
+
+- `GET /api/lecturer/sections` - Xem lớp dạy
+- `GET /api/lecturer/sections/:sectionId/students` - Xem danh sách sinh viên
+
+**Điểm & Thông báo**
+
+- `PUT /api/lecturer/grades` - Nhập điểm
+- `POST /api/lecturer/grades/submit` - Nộp điểm
+- `POST /api/lecturer/announcements` - Gửi thông báo
+
+---
+
+## 8) Hướng dẫn Test
+
+### Test Sinh viên (Mobile)
+
+1. Đăng nhập: `student@university.edu` / `Student@123`
+2. Xem 3 lớp học phần mở
+3. Đăng ký/hủy đăng ký lớp
+4. Xem lịch học, lịch thi, bảng điểm, học phí
+
+### Test Giảng viên (Web)
+
+1. Đăng nhập: `lecturer@university.edu` / `Lecturer@123`
+2. Xem 3 lớp dạy
+3. Xem danh sách sinh viên
+4. Nhập và nộp điểm
+5. Gửi thông báo
+
+### Test Admin (Web)
+
+1. Đăng nhập: `admin@university.edu` / `Admin@123`
+2. Quản lý khoa, lớp, môn học
+3. Quản lý sinh viên, giảng viên
+4. Tạo lớp học phần, lịch học, lịch thi
+5. Quản lý học phí
+6. Gửi thông báo
 
 ---
 
 ## 9) Ghi chú
 
-- Các cảnh báo IDE về `@tailwind` trong CSS là do extension CSS không hiểu directive Tailwind; runtime/build Vite vẫn xử lý bình thường.
-- Mã nguồn ưu tiên tính hoàn chỉnh chức năng nghiệp vụ cho đồ án, UI giữ đơn giản.
+- Các cảnh báo IDE về `@tailwind` là do extension CSS không hiểu directive Tailwind
+- Mã nguồn ưu tiên tính hoàn chỉnh chức năng cho đồ án
+- Database tự động tạo khi chạy `prisma:push`
+- Để reset dữ liệu: chạy `node backend/clean-and-seed-minimal.js`
