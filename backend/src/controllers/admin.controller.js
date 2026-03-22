@@ -143,17 +143,19 @@ export async function listClassGroups(req, res, next) {
 
 export async function listSections(req, res, next) {
   try {
-    const semester = req.query.semester;
+    const semesterId = req.query.semesterId ? Number(req.query.semesterId) : undefined;
 
     const sections = await prisma.section.findMany({
       where: {
-        ...(semester ? { semester } : {}),
+        ...(semesterId ? { semesterId } : {}),
       },
       select: {
         id: true,
         code: true,
-        semester: true,
-        academicYear: true,
+        capacity: true,
+        semester: {
+          select: { id: true, name: true, academicYear: true }
+        },
         classGroup: {
           select: {
             id: true,
@@ -373,9 +375,9 @@ export async function createSection(req, res, next) {
       data: {
         code: req.body.code,
         subjectId: req.body.subjectId,
+        semesterId: req.body.semesterId,
         classGroupId: req.body.classGroupId ?? null,
-        semester: req.body.semester,
-        academicYear: req.body.academicYear,
+        capacity: req.body.capacity ?? 40,
       },
     });
 
@@ -395,7 +397,7 @@ export async function createSection(req, res, next) {
 export async function updateSection(req, res, next) {
   try {
     const { id } = req.params;
-    const { code, subjectId, classGroupId, semester, academicYear } = req.body;
+    const { code, subjectId, semesterId, classGroupId, capacity } = req.body;
 
     const section = await prisma.section.findUnique({
       where: { id: Number(id) },
@@ -414,9 +416,9 @@ export async function updateSection(req, res, next) {
       data: {
         ...(code && { code }),
         ...(subjectId && { subjectId }),
+        ...(semesterId && { semesterId }),
         ...(classGroupId !== undefined && { classGroupId }), // allow null
-        ...(semester && { semester }),
-        ...(academicYear && { academicYear }),
+        ...(capacity !== undefined && { capacity }),
       },
     });
 
@@ -450,61 +452,57 @@ export async function deleteSection(req, res, next) {
   }
 }
 
-async function checkScheduleOverlap(sectionId, dayOfWeek, startTime, endTime, room, excludeScheduleId = null) {
-  if (startTime >= endTime) {
-    throw badRequest("Thời gian kết thúc phải lớn hơn thời gian bắt đầu.");
-  }
+async function checkScheduleOverlap(sectionId, dayOfWeek, shift, roomId, excludeScheduleId = null) {
+  if (shift === undefined || shift === null) return; // Allow null shift
 
   const sectionOverlap = await prisma.schedule.findFirst({
     where: {
       sectionId,
       dayOfWeek,
+      shift,
       ...(excludeScheduleId && { id: { not: excludeScheduleId } }),
-      startTime: { lt: endTime },
-      endTime: { gt: startTime },
     },
   });
 
   if (sectionOverlap) {
-    throw badRequest("Học phần này đã có lịch học trùng thời gian.");
+    throw badRequest("Học phần này đã có lịch học trùng ca.");
   }
 
-  if (room) {
+  if (roomId) {
     const roomOverlap = await prisma.schedule.findFirst({
       where: {
-        room,
+        roomId,
         dayOfWeek,
+        shift,
         ...(excludeScheduleId && { id: { not: excludeScheduleId } }),
-        startTime: { lt: endTime },
-        endTime: { gt: startTime },
       },
       include: {
         section: {
           include: { subject: true },
         },
+        room: true,
       },
     });
 
     if (roomOverlap) {
       const subjectName = roomOverlap.section.subject?.name || roomOverlap.section.code;
-      throw badRequest(`Phòng ${room} đang bị trùng lịch (Đã xếp cho ${subjectName}, thứ ${dayOfWeek}, ${roomOverlap.startTime}-${roomOverlap.endTime}).`);
+      throw badRequest(`Phòng ${roomOverlap.room?.name || roomId} đang bị trùng lịch (Đã xếp cho ${subjectName}, thứ ${dayOfWeek}, ca ${roomOverlap.shift}).`);
     }
   }
 }
 
 export async function createSchedule(req, res, next) {
   try {
-    const { sectionId, dayOfWeek, startTime, endTime, room } = req.body;
+    const { sectionId, dayOfWeek, shift, roomId } = req.body;
 
-    await checkScheduleOverlap(sectionId, dayOfWeek, startTime, endTime, room);
+    await checkScheduleOverlap(sectionId, dayOfWeek, shift, roomId);
 
     const created = await prisma.schedule.create({
       data: {
         sectionId,
         dayOfWeek,
-        startTime,
-        endTime,
-        room: room ?? null,
+        shift: shift ?? null,
+        roomId: roomId ?? null,
       },
     });
 
@@ -527,7 +525,7 @@ export async function createSchedule(req, res, next) {
 export async function updateSchedule(req, res, next) {
   try {
     const { id } = req.params;
-    const { sectionId, dayOfWeek, startTime, endTime, room } = req.body;
+    const { sectionId, dayOfWeek, shift, roomId } = req.body;
 
     const schedule = await prisma.schedule.findUnique({
       where: { id: Number(id) },
@@ -536,20 +534,18 @@ export async function updateSchedule(req, res, next) {
 
     const newSectionId = sectionId || schedule.sectionId;
     const newDayOfWeek = dayOfWeek || schedule.dayOfWeek;
-    const newStartTime = startTime || schedule.startTime;
-    const newEndTime = endTime || schedule.endTime;
-    const newRoom = room !== undefined ? room : schedule.room;
+    const newShift = shift !== undefined ? shift : schedule.shift;
+    const newRoomId = roomId !== undefined ? roomId : schedule.roomId;
 
-    await checkScheduleOverlap(newSectionId, newDayOfWeek, newStartTime, newEndTime, newRoom, Number(id));
+    await checkScheduleOverlap(newSectionId, newDayOfWeek, newShift, newRoomId, Number(id));
 
     const updated = await prisma.schedule.update({
       where: { id: Number(id) },
       data: {
         ...(sectionId && { sectionId }),
         ...(dayOfWeek && { dayOfWeek }),
-        ...(startTime && { startTime }),
-        ...(endTime && { endTime }),
-        ...(room !== undefined && { room }),
+        ...(shift !== undefined && { shift }),
+        ...(roomId !== undefined && { roomId }),
       },
     });
 
@@ -579,7 +575,7 @@ export async function createExam(req, res, next) {
       data: {
         sectionId: req.body.sectionId,
         examDate: req.body.examDate,
-        room: req.body.room ?? null,
+        roomId: req.body.roomId ?? null,
         type: req.body.type,
       },
     });
@@ -603,7 +599,7 @@ export async function createExam(req, res, next) {
 export async function updateExam(req, res, next) {
   try {
     const { id } = req.params;
-    const { sectionId, examDate, room, type } = req.body;
+    const { sectionId, examDate, roomId, type } = req.body;
 
     const exam = await prisma.exam.findUnique({
       where: { id: Number(id) },
@@ -615,7 +611,7 @@ export async function updateExam(req, res, next) {
       data: {
         ...(sectionId && { sectionId }),
         ...(examDate && { examDate }),
-        ...(room !== undefined && { room }),
+        ...(roomId !== undefined && { roomId }),
         ...(type && { type }),
       },
     });
@@ -644,6 +640,7 @@ export async function listSchedules(req, res, next) {
   try {
     const schedules = await prisma.schedule.findMany({
       include: {
+        room: true,
         section: {
           include: {
             subject: true,
@@ -805,6 +802,7 @@ export async function createStudent(req, res, next) {
       classGroupId,
       phone,
       address,
+      status,
     } = req.body;
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -822,6 +820,7 @@ export async function createStudent(req, res, next) {
             classGroupId,
             phone: phone ?? null,
             address: address ?? null,
+            status: status ?? "ACTIVE",
           },
         },
       },
@@ -861,7 +860,7 @@ export async function updateStudent(req, res, next) {
       throw notFound("Student not found");
     }
 
-    const { fullName, departmentId, classGroupId, phone, address, isActive } = req.body;
+    const { fullName, departmentId, classGroupId, phone, address, isActive, status } = req.body;
 
     await prisma.$transaction([
       prisma.student.update({
@@ -871,6 +870,7 @@ export async function updateStudent(req, res, next) {
           ...(classGroupId ? { classGroupId } : {}),
           ...(phone !== undefined ? { phone } : {}),
           ...(address !== undefined ? { address } : {}),
+          ...(status !== undefined ? { status } : {}),
         },
       }),
       prisma.user.update({
@@ -1115,7 +1115,7 @@ export async function assignLecturer(req, res, next) {
 
 export async function createAnnouncement(req, res, next) {
   try {
-    const { title, content, scope, departmentId, classGroupId, sectionId } = req.body;
+    const { title, content, scope, departmentId, classGroupId, sectionId, semesterId } = req.body;
 
     if (scope === "DEPARTMENT" && !departmentId) {
       throw badRequest("departmentId is required for DEPARTMENT scope");
@@ -1129,6 +1129,10 @@ export async function createAnnouncement(req, res, next) {
       throw badRequest("sectionId is required for SECTION scope");
     }
 
+    if (scope === "SEMESTER" && !semesterId) {
+      throw badRequest("semesterId is required for SEMESTER scope");
+    }
+
     const announcement = await prisma.announcement.create({
       data: {
         title,
@@ -1137,6 +1141,7 @@ export async function createAnnouncement(req, res, next) {
         departmentId: departmentId ?? null,
         classGroupId: classGroupId ?? null,
         sectionId: sectionId ?? null,
+        semesterId: semesterId ?? null,
         createdById: req.user.id,
       },
     });
@@ -1146,6 +1151,7 @@ export async function createAnnouncement(req, res, next) {
       departmentId,
       classGroupId,
       sectionId,
+      semesterId,
     });
 
     await createInAppNotifications({
@@ -1355,7 +1361,7 @@ export async function removeCurriculumSubject(req, res, next) {
 
 export async function enrollStudentBySemester(req, res, next) {
   try {
-    const { studentId, semester, academicYear } = req.body;
+    const { studentId, curriculumSemester, semesterId } = req.body;
 
     const student = await prisma.student.findUnique({
       where: { id: studentId },
@@ -1369,7 +1375,7 @@ export async function enrollStudentBySemester(req, res, next) {
       where: { departmentId: student.departmentId },
       include: {
         subjects: {
-          where: { semester },
+          where: { semester: curriculumSemester },
           include: { subject: true },
         },
       },
@@ -1380,20 +1386,22 @@ export async function enrollStudentBySemester(req, res, next) {
     }
 
     if (curriculum.subjects.length === 0) {
-      throw badRequest(`Chương trình đào tạo chưa có môn học cho kỳ ${semester}`);
+      throw badRequest(`Chương trình đào tạo chưa có môn học cho kỳ (trong CTĐT) ${curriculumSemester}`);
     }
 
     const sections = await prisma.section.findMany({
       where: {
         subjectId: { in: curriculum.subjects.map((cs) => cs.subjectId) },
         classGroupId: student.classGroupId,
-        semester: `HK${semester}`,
-        academicYear,
+        semesterId,
       },
+      include: {
+        semester: true
+      }
     });
 
     if (sections.length === 0) {
-      throw badRequest(`Chưa có học phần nào mở cho kỳ ${semester}, năm học ${academicYear}, lớp của sinh viên`);
+      throw badRequest(`Chưa có học phần nào mở cho học kỳ này cho lớp của sinh viên`);
     }
 
     const existingEnrollments = await prisma.enrollment.findMany({
@@ -1420,7 +1428,7 @@ export async function enrollStudentBySemester(req, res, next) {
 
     await prisma.student.update({
       where: { id: studentId },
-      data: { currentSemester: semester },
+      data: { currentSemester: curriculumSemester },
     });
 
     await createAuditLog({
@@ -1428,7 +1436,7 @@ export async function enrollStudentBySemester(req, res, next) {
       action: "ENROLL_BY_SEMESTER",
       entity: "Enrollment",
       entityId: studentId,
-      metadata: { semester, academicYear, enrolledCount: enrollments.length },
+      metadata: { curriculumSemester, semesterId, enrolledCount: enrollments.length },
     });
 
     return res.status(201).json({
@@ -1437,6 +1445,395 @@ export async function enrollStudentBySemester(req, res, next) {
         enrollments,
       },
     });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+// ── Tuition Fee Management ──
+
+export async function listTuitionFees(req, res, next) {
+  try {
+    const { studentId, semesterId } = req.query;
+    const where = {};
+    if (studentId) where.studentId = Number(studentId);
+    if (semesterId) where.semesterId = Number(semesterId);
+
+    const tuitionFees = await prisma.tuitionFee.findMany({
+      where,
+      include: {
+        semester: true,
+        student: {
+          select: {
+            id: true,
+            studentCode: true,
+            user: { select: { fullName: true } },
+            classGroup: { select: { name: true } },
+          },
+        },
+        items: {
+          include: {
+            enrollment: {
+              select: {
+                section: {
+                  select: {
+                    code: true,
+                    subject: { select: { code: true, name: true, credits: true } },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { id: "asc" },
+        },
+      },
+      orderBy: { semester: { startDate: "desc" } },
+    });
+
+    return res.json({ data: tuitionFees });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function generateTuitionFees(req, res, next) {
+  try {
+    const { studentId } = req.body;
+
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+    });
+    if (!student) throw notFound("Sinh viên không tồn tại");
+
+    // Get all unique semesterIds from enrollments
+    const enrollments = await prisma.enrollment.findMany({
+      where: { studentId },
+      select: {
+        section: {
+          select: { semesterId: true },
+        },
+      },
+    });
+
+    const semesterIds = [...new Set(enrollments.map((e) => e.section.semesterId))];
+
+    if (semesterIds.length === 0) {
+      throw badRequest("Sinh viên chưa có đăng ký lớp học nào.");
+    }
+
+    // Get all active tuition configs for these semesters
+    const configs = await prisma.tuitionConfig.findMany({
+      where: {
+        semesterId: { in: semesterIds },
+        isActive: true,
+      },
+      include: { semester: true },
+    });
+
+    if (configs.length === 0) {
+      throw badRequest(
+        `Không tìm thấy cấu hình giá tín chỉ cho các học kỳ sinh viên đã đăng ký. Vui lòng cấu hình trước.`
+      );
+    }
+
+    const results = [];
+
+    for (const config of configs) {
+      const { semesterId, creditPrice } = config;
+
+      const semesterEnrollments = await prisma.enrollment.findMany({
+        where: {
+          studentId,
+          section: { semesterId },
+        },
+        include: {
+          section: {
+            include: {
+              subject: { select: { id: true, code: true, name: true, credits: true } },
+            },
+          },
+        },
+      });
+
+      if (semesterEnrollments.length === 0) continue;
+
+      const tuitionFee = await prisma.tuitionFee.upsert({
+        where: {
+          studentId_semesterId: { studentId, semesterId },
+        },
+        update: {},
+        create: {
+          studentId,
+          semesterId,
+          amountDue: 0,
+          amountPaid: 0,
+          discount: 0,
+          debt: 0,
+        },
+      });
+
+      const items = [];
+      let totalAmountDue = 0;
+
+      for (const enrollment of semesterEnrollments) {
+        const credits = enrollment.section.subject?.credits || 0;
+        const amountDue = credits * creditPrice;
+        totalAmountDue += amountDue;
+
+        items.push({
+          tuitionFeeId: tuitionFee.id,
+          enrollmentId: enrollment.id,
+          name: `${enrollment.section.code}-${enrollment.section.subject.name}`,
+          credits,
+          creditPrice,
+          amountDue,
+          amountPaid: 0,
+          discount: 0,
+          debt: amountDue,
+        });
+      }
+
+      if (items.length > 0) {
+        await prisma.tuitionFeeItem.createMany({ data: items });
+        await prisma.tuitionFee.update({
+          where: { id: tuitionFee.id },
+          data: {
+            amountDue: totalAmountDue,
+            debt: totalAmountDue,
+          },
+        });
+      }
+
+      await createAuditLog({
+        userId: req.user.id,
+        action: "GENERATE_TUITION",
+        entity: "TuitionFee",
+        entityId: String(tuitionFee.id),
+        metadata: {
+          studentId,
+          semesterId,
+          creditPrice,
+          itemCount: items.length,
+        },
+      });
+
+      results.push({
+        semesterId,
+        semesterName: config.semester.name,
+        creditPrice,
+        tuitionFeeId: tuitionFee.id,
+        itemCount: items.length,
+      });
+    }
+
+    return res.status(201).json({
+      data: results,
+      message: `Đã tạo học phí cho ${results.length} học kỳ`,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function listAssignments(_req, res, next) {
+  try {
+    const assignments = await prisma.teachingAssignment.findMany({
+      include: {
+        lecturer: {
+          include: { user: { select: { fullName: true, email: true } } },
+        },
+        section: {
+          include: {
+            subject: { select: { code: true, name: true, credits: true } },
+            semester: { select: { id: true, name: true, academicYear: true } },
+            classGroup: { select: { id: true, code: true, name: true } },
+          },
+        },
+      },
+      orderBy: { id: "desc" },
+    });
+
+    return res.json({ data: assignments });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateTuitionFeeItem(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { amountDue, amountPaid, discount, paidAt } = req.body;
+
+    const item = await prisma.tuitionFeeItem.findUnique({ where: { id: Number(id) } });
+    if (!item) throw notFound("Khoản phí không tồn tại");
+
+    const updatedAmountDue = amountDue !== undefined ? amountDue : item.amountDue;
+    const updatedAmountPaid = amountPaid !== undefined ? amountPaid : item.amountPaid;
+    const updatedDiscount = discount !== undefined ? discount : item.discount;
+    const debt = Math.max(0, updatedAmountDue - updatedAmountPaid - updatedDiscount);
+
+    const updated = await prisma.tuitionFeeItem.update({
+      where: { id: Number(id) },
+      data: {
+        amountDue: updatedAmountDue,
+        amountPaid: updatedAmountPaid,
+        discount: updatedDiscount,
+        debt,
+        paidAt: paidAt !== undefined ? (paidAt ? new Date(paidAt) : null) : item.paidAt,
+      },
+    });
+
+    return res.json({ data: updated });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteTuitionFee(req, res, next) {
+  try {
+    const { id } = req.params;
+    await prisma.tuitionFee.delete({ where: { id: Number(id) } });
+    return res.json({ message: "Đã xoá học phí" });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+// ── Tuition Config Management ──
+
+export async function listTuitionConfigs(req, res, next) {
+  try {
+    const configs = await prisma.tuitionConfig.findMany({
+      include: { semester: true },
+      orderBy: { semester: { startDate: "desc" } },
+    });
+    return res.json({ data: configs });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getTuitionConfig(req, res, next) {
+  try {
+    const { semesterId } = req.query;
+    const config = await prisma.tuitionConfig.findUnique({
+      where: { semesterId: Number(semesterId) },
+      include: { semester: true },
+    });
+    return res.json({ data: config });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function upsertTuitionConfig(req, res, next) {
+  try {
+    const { semesterId, creditPrice, isActive } = req.body;
+
+    const config = await prisma.tuitionConfig.upsert({
+      where: { semesterId: Number(semesterId) },
+      update: {
+        creditPrice: creditPrice ?? undefined,
+        isActive: isActive ?? undefined,
+      },
+      create: {
+        semesterId: Number(semesterId),
+        creditPrice,
+        isActive: isActive ?? true,
+      },
+    });
+
+    await createAuditLog({
+      userId: req.user.id,
+      action: "UPSERT_TUITION_CONFIG",
+      entity: "TuitionConfig",
+      entityId: String(config.id),
+      metadata: { semesterId, creditPrice },
+    });
+
+    return res.json({ data: config });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+// ── Semester Management ──
+export async function listSemesters(req, res, next) {
+  try {
+    const semesters = await prisma.semester.findMany({
+      orderBy: { startDate: "desc" },
+    });
+    return res.json({ data: semesters });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function createSemester(req, res, next) {
+  try {
+    const created = await prisma.semester.create({
+      data: req.body,
+    });
+    return res.status(201).json({ data: created });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateSemester(req, res, next) {
+  try {
+    const { id } = req.params;
+    const updated = await prisma.semester.update({
+      where: { id: Number(id) },
+      data: req.body,
+    });
+    return res.json({ data: updated });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+// ── Room Management ──
+export async function listRooms(req, res, next) {
+  try {
+    const rooms = await prisma.room.findMany({
+      orderBy: { name: "asc" },
+    });
+    return res.json({ data: rooms });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function createRoom(req, res, next) {
+  try {
+    const created = await prisma.room.create({
+       data: req.body,
+    });
+    return res.status(201).json({ data: created });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateRoom(req, res, next) {
+  try {
+    const { id } = req.params;
+    const updated = await prisma.room.update({
+      where: { id: Number(id) },
+      data: req.body,
+    });
+    return res.json({ data: updated });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteTuitionConfig(req, res, next) {
+  try {
+    const { id } = req.params;
+    await prisma.tuitionConfig.delete({ where: { id: Number(id) } });
+    return res.json({ message: "Đã xoá cấu hình giá tín chỉ" });
   } catch (error) {
     return next(error);
   }

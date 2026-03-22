@@ -13,7 +13,10 @@ import LecturerDetailPage from "./pages/LecturerDetailPage";
 import LecturerGradesPage from "./pages/LecturerGradesPage";
 import LecturerTimetablePage from "./pages/LecturerTimetablePage";
 import LecturerAnnouncementsPage from "./pages/LecturerAnnouncementsPage";
+import LecturerAttendancePage from "./pages/LecturerAttendancePage";
 import CurriculumPage from "./pages/CurriculumPage";
+import TuitionPage from "./pages/TuitionPage";
+import EnrollmentsPage from "./pages/EnrollmentsPage";
 
 export default function App() {
   return (
@@ -31,7 +34,9 @@ export default function App() {
             <Route path="/lecturers/:id" element={<LecturerDetailPage />} />
             <Route path="/academics" element={<AcademicsPage />} />
             <Route path="/curriculum" element={<CurriculumPage />} />
+            <Route path="/tuition" element={<TuitionPage />} />
             <Route path="/assignments" element={<AssignmentsPage />} />
+            <Route path="/enrollments" element={<EnrollmentsPage />} />
             <Route path="/announcements" element={<AnnouncementsPage />} />
           </Route>
 
@@ -39,6 +44,7 @@ export default function App() {
             <Route path="/lecturer/timetable" element={<LecturerTimetablePage />} />
             <Route path="/lecturer/announcements" element={<LecturerAnnouncementsPage />} />
             <Route path="/lecturer/grades" element={<LecturerGradesPage />} />
+            <Route path="/lecturer/attendance" element={<LecturerAttendancePage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -42,6 +42,20 @@ import {
   addCurriculumSubject,
   removeCurriculumSubject,
   enrollStudentBySemester,
+  listTuitionFees,
+  generateTuitionFees,
+  updateTuitionFeeItem,
+  deleteTuitionFee,
+  listTuitionConfigs,
+  upsertTuitionConfig,
+  deleteTuitionConfig,
+  listSemesters,
+  createSemester,
+  updateSemester,
+  listRooms,
+  createRoom,
+  updateRoom,
+  listAssignments,
 } from "../controllers/admin.controller.js";
 import {
   assignLecturerSchema,
@@ -66,6 +80,10 @@ import {
   updateExamSchema,
   updateLecturerSchema,
   updateStudentSchema,
+  createSemesterSchema,
+  updateSemesterSchema,
+  createRoomSchema,
+  updateRoomSchema,
 } from "../validators/admin.validator.js";
 import { validate } from "../middleware/validate.js";
 
@@ -116,6 +134,7 @@ adminRouter.post("/lecturers", validate(createLecturerSchema), createLecturer);
 adminRouter.put("/lecturers/:id", validate(updateLecturerSchema), updateLecturer);
 
 adminRouter.post("/assignments", validate(assignLecturerSchema), assignLecturer);
+adminRouter.get("/assignments", listAssignments);
 
 adminRouter.post("/announcements", validate(createAnnouncementSchema), createAnnouncement);
 
@@ -126,3 +145,20 @@ adminRouter.post("/curriculum", validate(upsertCurriculumSchema), upsertCurricul
 adminRouter.post("/curriculum/subjects", validate(addCurriculumSubjectSchema), addCurriculumSubject);
 adminRouter.delete("/curriculum/subjects/:id", removeCurriculumSubject);
 adminRouter.post("/enrollments/semester", validate(enrollBySemesterSchema), enrollStudentBySemester);
+
+adminRouter.get("/tuition-fees", listTuitionFees);
+adminRouter.post("/tuition-fees/generate", generateTuitionFees);
+adminRouter.put("/tuition-fees/items/:id", updateTuitionFeeItem);
+adminRouter.delete("/tuition-fees/:id", deleteTuitionFee);
+
+adminRouter.get("/tuition-configs", listTuitionConfigs);
+adminRouter.post("/tuition-configs", upsertTuitionConfig);
+adminRouter.delete("/tuition-configs/:id", deleteTuitionConfig);
+
+adminRouter.get("/semesters", listSemesters);
+adminRouter.post("/semesters", validate(createSemesterSchema), createSemester);
+adminRouter.put("/semesters/:id", validate(updateSemesterSchema), updateSemester);
+
+adminRouter.get("/rooms", listRooms);
+adminRouter.post("/rooms", validate(createRoomSchema), createRoom);
+adminRouter.put("/rooms/:id", validate(updateRoomSchema), updateRoom);

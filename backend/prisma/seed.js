@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { PrismaClient, AnnouncementScope, Role } from "@prisma/client";
+import { PrismaClient, AnnouncementScope, Role, SemesterStatus, RoomType, SubjectType } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -20,16 +20,45 @@ const DEPARTMENTS = [
       { code: "GV003", name: "Lê Quốc Bảo",        title: "PGS.TS.", email: "bao.lq@school.edu.vn" },
     ],
     subjects: [
-      { code: "NMLT",  name: "Nhập môn lập trình",       credits: 3, semester: 1 },
-      { code: "CSDL",  name: "Cơ sở dữ liệu",            credits: 3, semester: 1 },
-      { code: "CTDL",  name: "Cấu trúc dữ liệu & GT",    credits: 3, semester: 1 },
-      { code: "LTJV",  name: "Lập trình Java",            credits: 3, semester: 2 },
-      { code: "MMT",   name: "Mạng máy tính",             credits: 3, semester: 2 },
-      { code: "HDH",   name: "Hệ điều hành",              credits: 3, semester: 2 },
-      { code: "CNPM",  name: "Công nghệ phần mềm",        credits: 3, semester: 3 },
-      { code: "PTUD",  name: "Phát triển ứng dụng Web",   credits: 3, semester: 3 },
-      { code: "TTNT",  name: "Trí tuệ nhân tạo",          credits: 3, semester: 4 },
-      { code: "DATN1", name: "Đồ án tốt nghiệp (CNTT)",  credits: 5, semester: 4 },
+      // Năm 1 - HK1 (semester 1)
+      { code: "NMLT",  name: "Nhập môn lập trình",         credits: 3, semester: 1 },
+      { code: "TH101", name: "Tin học đại cương",           credits: 3, semester: 1 },
+      { code: "TOAN1", name: "Toán cao cấp 1",             credits: 3, semester: 1 },
+      { code: "LLCT1", name: "Triết học Mác - Lênin",      credits: 3, semester: 1 },
+      { code: "AV1",   name: "Tiếng Anh 1",                credits: 2, semester: 1 },
+      // Năm 1 - HK2 (semester 2)
+      { code: "CTDL",  name: "Cấu trúc dữ liệu & GT",     credits: 3, semester: 2 },
+      { code: "TOAN2", name: "Toán cao cấp 2",             credits: 3, semester: 2 },
+      { code: "XSTK",  name: "Xác suất thống kê",          credits: 3, semester: 2 },
+      { code: "LLCT2", name: "Kinh tế chính trị ML",       credits: 2, semester: 2 },
+      { code: "AV2",   name: "Tiếng Anh 2",                credits: 2, semester: 2 },
+      // Năm 2 - HK1 (semester 3)
+      { code: "CSDL",  name: "Cơ sở dữ liệu",             credits: 3, semester: 3 },
+      { code: "MMT",   name: "Mạng máy tính",              credits: 3, semester: 3 },
+      { code: "LTJV",  name: "Lập trình Java",             credits: 3, semester: 3 },
+      { code: "TKMM",  name: "Toán rời rạc",               credits: 3, semester: 3 },
+      // Năm 2 - HK2 (semester 4)
+      { code: "HDH",   name: "Hệ điều hành",               credits: 3, semester: 4 },
+      { code: "LTPY",  name: "Lập trình Python",           credits: 3, semester: 4 },
+      { code: "PTTKHT", name: "Phân tích thiết kế HT",     credits: 3, semester: 4 },
+      { code: "LTHDT", name: "Lập trình hướng đối tượng",  credits: 3, semester: 4 },
+      // Năm 3 - HK1 (semester 5)
+      { code: "CNPM",  name: "Công nghệ phần mềm",         credits: 3, semester: 5 },
+      { code: "PTUD",  name: "Phát triển ứng dụng Web",    credits: 3, semester: 5 },
+      { code: "ATTT",  name: "An toàn thông tin",           credits: 3, semester: 5 },
+      { code: "LTMB",  name: "Lập trình di động",           credits: 3, semester: 5 },
+      // Năm 3 - HK2 (semester 6)
+      { code: "TTNT",  name: "Trí tuệ nhân tạo",           credits: 3, semester: 6 },
+      { code: "DPT",   name: "Dữ liệu lớn",               credits: 3, semester: 6 },
+      { code: "KTPM",  name: "Kiểm thử phần mềm",          credits: 3, semester: 6 },
+      { code: "QLDA",  name: "Quản lý dự án CNTT",         credits: 2, semester: 6 },
+      // Năm 4 - HK1 (semester 7)
+      { code: "HTTT",  name: "Hệ thống thông tin",          credits: 3, semester: 7 },
+      { code: "IOT",   name: "Internet vạn vật (IoT)",      credits: 3, semester: 7 },
+      { code: "TTDN",  name: "Thực tập doanh nghiệp",      credits: 3, semester: 7 },
+      // Năm 4 - HK2 (semester 8)
+      { code: "DATN1", name: "Đồ án tốt nghiệp (CNTT)",    credits: 5, semester: 8 },
+      { code: "CNTD",  name: "Chuyên đề tốt nghiệp",       credits: 3, semester: 8 },
     ],
     students: [
       { code: "SV001", name: "Trần Văn An",       phone: "0901000001", address: "Đà Nẵng",       classIdx: 0 },
@@ -53,16 +82,43 @@ const DEPARTMENTS = [
       { code: "GV005", name: "Đặng Quốc Vinh",     title: "ThS.", email: "vinh.dq@school.edu.vn" },
     ],
     subjects: [
-      { code: "KTVM",  name: "Kinh tế vi mô",            credits: 3, semester: 1 },
-      { code: "NLQT",  name: "Nguyên lý quản trị",        credits: 3, semester: 1 },
-      { code: "KTVMO", name: "Kinh tế vĩ mô",            credits: 3, semester: 1 },
-      { code: "MKTG",  name: "Marketing căn bản",          credits: 3, semester: 2 },
-      { code: "QTTC",  name: "Quản trị tài chính",        credits: 3, semester: 2 },
-      { code: "LKT",   name: "Luật kinh tế",              credits: 2, semester: 2 },
-      { code: "QTNS",  name: "Quản trị nhân sự",          credits: 3, semester: 3 },
-      { code: "TMDT",  name: "Thương mại điện tử",        credits: 3, semester: 3 },
-      { code: "KNKD",  name: "Khởi nghiệp kinh doanh",   credits: 3, semester: 4 },
-      { code: "DATN2", name: "Đồ án tốt nghiệp (QTKD)",  credits: 5, semester: 4 },
+      // Năm 1 - HK1 (semester 1)
+      { code: "KTVM",  name: "Kinh tế vi mô",              credits: 3, semester: 1 },
+      { code: "NLQT",  name: "Nguyên lý quản trị",          credits: 3, semester: 1 },
+      { code: "LLCTQ", name: "Triết học Mác - Lênin",       credits: 3, semester: 1 },
+      { code: "AVQ1",  name: "Tiếng Anh 1",                 credits: 2, semester: 1 },
+      { code: "TOAN1Q", name: "Toán kinh tế",               credits: 3, semester: 1 },
+      // Năm 1 - HK2 (semester 2)
+      { code: "KTVMO", name: "Kinh tế vĩ mô",              credits: 3, semester: 2 },
+      { code: "NLKTQ", name: "Nguyên lý kế toán",           credits: 3, semester: 2 },
+      { code: "LLCTQ2", name: "Kinh tế chính trị ML",       credits: 2, semester: 2 },
+      { code: "AVQ2",  name: "Tiếng Anh 2",                 credits: 2, semester: 2 },
+      { code: "PLDC",  name: "Pháp luật đại cương",         credits: 2, semester: 2 },
+      // Năm 2 - HK1 (semester 3)
+      { code: "MKTG",  name: "Marketing căn bản",            credits: 3, semester: 3 },
+      { code: "QTTC",  name: "Quản trị tài chính",          credits: 3, semester: 3 },
+      { code: "LKT",   name: "Luật kinh tế",                credits: 2, semester: 3 },
+      { code: "TKUD",  name: "Thống kê ứng dụng",           credits: 3, semester: 3 },
+      // Năm 2 - HK2 (semester 4)
+      { code: "QTNS",  name: "Quản trị nhân sự",            credits: 3, semester: 4 },
+      { code: "TMDT",  name: "Thương mại điện tử",          credits: 3, semester: 4 },
+      { code: "QTKHO", name: "Quản trị chuỗi cung ứng",    credits: 3, semester: 4 },
+      { code: "KTTCQ", name: "Kế toán tài chính",           credits: 3, semester: 4 },
+      // Năm 3 - HK1 (semester 5)
+      { code: "QTCL",  name: "Quản trị chiến lược",         credits: 3, semester: 5 },
+      { code: "QTSX",  name: "Quản trị sản xuất",           credits: 3, semester: 5 },
+      { code: "MKTN",  name: "Marketing nâng cao",           credits: 3, semester: 5 },
+      // Năm 3 - HK2 (semester 6)
+      { code: "QTRR",  name: "Quản trị rủi ro",             credits: 3, semester: 6 },
+      { code: "DVKH",  name: "Quản trị dịch vụ",            credits: 3, semester: 6 },
+      { code: "KNKD",  name: "Khởi nghiệp kinh doanh",     credits: 3, semester: 6 },
+      // Năm 4 - HK1 (semester 7)
+      { code: "TTDNQ", name: "Thực tập doanh nghiệp",      credits: 3, semester: 7 },
+      { code: "PTDA",  name: "Phân tích dự án đầu tư",      credits: 3, semester: 7 },
+      { code: "KDQT",  name: "Kinh doanh quốc tế",          credits: 3, semester: 7 },
+      // Năm 4 - HK2 (semester 8)
+      { code: "DATN2", name: "Đồ án tốt nghiệp (QTKD)",    credits: 5, semester: 8 },
+      { code: "CDTNQ", name: "Chuyên đề tốt nghiệp",       credits: 3, semester: 8 },
     ],
     students: [
       { code: "SV007", name: "Nguyễn Thị Giang",  phone: "0902000001", address: "Đà Nẵng",  classIdx: 0 },
@@ -84,16 +140,42 @@ const DEPARTMENTS = [
       { code: "GV007", name: "Ngô Đình Phong",      title: "ThS.", email: "phong.nd@school.edu.vn" },
     ],
     subjects: [
-      { code: "NLKT",  name: "Nguyên lý kế toán",        credits: 3, semester: 1 },
-      { code: "TCKD",  name: "Tài chính kinh doanh",      credits: 3, semester: 1 },
-      { code: "TK",    name: "Thống kê ứng dụng",         credits: 3, semester: 1 },
-      { code: "KTTC",  name: "Kế toán tài chính",         credits: 3, semester: 2 },
-      { code: "LKTK",  name: "Luật kế toán",              credits: 2, semester: 2 },
-      { code: "THKT",  name: "Tin học kế toán",            credits: 3, semester: 2 },
-      { code: "KTQT",  name: "Kế toán quản trị",          credits: 3, semester: 3 },
-      { code: "KTOM",  name: "Kiểm toán",                 credits: 3, semester: 3 },
-      { code: "PTTC",  name: "Phân tích tài chính",       credits: 3, semester: 4 },
-      { code: "DATN3", name: "Đồ án tốt nghiệp (KT)",    credits: 5, semester: 4 },
+      // Năm 1 - HK1 (semester 1)
+      { code: "NLKT",  name: "Nguyên lý kế toán",          credits: 3, semester: 1 },
+      { code: "KTVM2", name: "Kinh tế vi mô",              credits: 3, semester: 1 },
+      { code: "LLCTK", name: "Triết học Mác - Lênin",       credits: 3, semester: 1 },
+      { code: "AVK1",  name: "Tiếng Anh 1",                 credits: 2, semester: 1 },
+      { code: "TK",    name: "Toán kinh tế",                credits: 3, semester: 1 },
+      // Năm 1 - HK2 (semester 2)
+      { code: "TCKD",  name: "Tài chính doanh nghiệp",      credits: 3, semester: 2 },
+      { code: "KTVMO2", name: "Kinh tế vĩ mô",              credits: 3, semester: 2 },
+      { code: "LLCTK2", name: "Kinh tế chính trị ML",        credits: 2, semester: 2 },
+      { code: "AVK2",  name: "Tiếng Anh 2",                  credits: 2, semester: 2 },
+      { code: "TKUDK",  name: "Thống kê ứng dụng",            credits: 3, semester: 2 },
+      // Năm 2 - HK1 (semester 3)
+      { code: "KTTC",  name: "Kế toán tài chính 1",         credits: 3, semester: 3 },
+      { code: "LKTK",  name: "Luật kế toán",                credits: 2, semester: 3 },
+      { code: "THKT",  name: "Tin học kế toán",              credits: 3, semester: 3 },
+      { code: "TCTT",  name: "Tài chính - Tiền tệ",         credits: 3, semester: 3 },
+      // Năm 2 - HK2 (semester 4)
+      { code: "KTTC2", name: "Kế toán tài chính 2",         credits: 3, semester: 4 },
+      { code: "KTQT",  name: "Kế toán quản trị",            credits: 3, semester: 4 },
+      { code: "THUE",  name: "Thuế",                         credits: 3, semester: 4 },
+      { code: "TTCK",  name: "Thị trường chứng khoán",      credits: 2, semester: 4 },
+      // Năm 3 - HK1 (semester 5)
+      { code: "KTOM",  name: "Kiểm toán",                   credits: 3, semester: 5 },
+      { code: "KTCP",  name: "Kế toán chi phí",             credits: 3, semester: 5 },
+      { code: "KTNN",  name: "Kế toán ngân hàng",           credits: 3, semester: 5 },
+      // Năm 3 - HK2 (semester 6)
+      { code: "PTTC",  name: "Phân tích tài chính",         credits: 3, semester: 6 },
+      { code: "KTQTC", name: "Kế toán quốc tế",             credits: 3, semester: 6 },
+      { code: "HTTTKT", name: "Hệ thống TT kế toán",        credits: 3, semester: 6 },
+      // Năm 4 - HK1 (semester 7)
+      { code: "TTDNK", name: "Thực tập doanh nghiệp",      credits: 3, semester: 7 },
+      { code: "BCTC",  name: "Lập & Phân tích BCTC",        credits: 3, semester: 7 },
+      // Năm 4 - HK2 (semester 8)
+      { code: "DATN3", name: "Đồ án tốt nghiệp (KT)",      credits: 5, semester: 8 },
+      { code: "CDTNK", name: "Chuyên đề tốt nghiệp",       credits: 3, semester: 8 },
     ],
     students: [
       { code: "SV012", name: "Đỗ Thị Mai",        phone: "0903000001", address: "Đà Nẵng",      classIdx: 0 },
@@ -115,16 +197,42 @@ const DEPARTMENTS = [
       { code: "GV009", name: "David Smith",         title: "MA.",  email: "david.s@school.edu.vn" },
     ],
     subjects: [
-      { code: "NPTA",  name: "Ngữ pháp tiếng Anh",       credits: 3, semester: 1 },
-      { code: "NS1",   name: "Nghe - Nói 1",              credits: 2, semester: 1 },
-      { code: "DH1",   name: "Đọc hiểu 1",               credits: 3, semester: 1 },
-      { code: "VHT",   name: "Viết học thuật",             credits: 3, semester: 2 },
-      { code: "NS2",   name: "Nghe - Nói 2",              credits: 2, semester: 2 },
-      { code: "DH2",   name: "Đọc hiểu 2",               credits: 3, semester: 2 },
-      { code: "BPD",   name: "Biên phiên dịch",           credits: 3, semester: 3 },
-      { code: "NNH",   name: "Ngôn ngữ học đại cương",    credits: 3, semester: 3 },
-      { code: "VHAM",  name: "Văn học Anh - Mỹ",          credits: 3, semester: 4 },
-      { code: "DATN4", name: "Đồ án tốt nghiệp (NNA)",   credits: 5, semester: 4 },
+      // Năm 1 - HK1 (semester 1)
+      { code: "NPTA",  name: "Ngữ pháp tiếng Anh",         credits: 3, semester: 1 },
+      { code: "NS1",   name: "Nghe - Nói 1",                credits: 2, semester: 1 },
+      { code: "DH1",   name: "Đọc hiểu 1",                  credits: 3, semester: 1 },
+      { code: "LLCTN", name: "Triết học Mác - Lênin",        credits: 3, semester: 1 },
+      { code: "NNH1",  name: "Dẫn nhập ngôn ngữ học",       credits: 2, semester: 1 },
+      // Năm 1 - HK2 (semester 2)
+      { code: "VHT",   name: "Viết học thuật",               credits: 3, semester: 2 },
+      { code: "NS2",   name: "Nghe - Nói 2",                 credits: 2, semester: 2 },
+      { code: "DH2",   name: "Đọc hiểu 2",                   credits: 3, semester: 2 },
+      { code: "LLCTN2", name: "Kinh tế chính trị ML",         credits: 2, semester: 2 },
+      { code: "NV1",   name: "Ngữ âm học",                    credits: 2, semester: 2 },
+      // Năm 2 - HK1 (semester 3)
+      { code: "NS3",   name: "Nghe - Nói 3",                  credits: 2, semester: 3 },
+      { code: "VHT2",  name: "Viết nâng cao",                 credits: 3, semester: 3 },
+      { code: "NPDH",  name: "Ngữ pháp nâng cao",            credits: 3, semester: 3 },
+      { code: "VHAB",  name: "Văn hóa Anh - Mỹ",            credits: 3, semester: 3 },
+      // Năm 2 - HK2 (semester 4)
+      { code: "NS4",   name: "Nghe - Nói 4",                  credits: 2, semester: 4 },
+      { code: "BPD1",  name: "Biên dịch 1",                   credits: 3, semester: 4 },
+      { code: "VHAM",  name: "Văn học Anh - Mỹ",             credits: 3, semester: 4 },
+      { code: "NNDH",  name: "Ngôn ngữ học đối chiếu",       credits: 3, semester: 4 },
+      // Năm 3 - HK1 (semester 5)
+      { code: "BPD2",  name: "Biên dịch 2",                   credits: 3, semester: 5 },
+      { code: "PDC",   name: "Phiên dịch cabin",              credits: 3, semester: 5 },
+      { code: "TATM",  name: "Tiếng Anh thương mại",         credits: 3, semester: 5 },
+      // Năm 3 - HK2 (semester 6)
+      { code: "NNH",   name: "Ngôn ngữ học đại cương",       credits: 3, semester: 6 },
+      { code: "TADL",  name: "Tiếng Anh du lịch",            credits: 3, semester: 6 },
+      { code: "PPGD",  name: "Phương pháp giảng dạy TA",     credits: 3, semester: 6 },
+      // Năm 4 - HK1 (semester 7)
+      { code: "TTDNN", name: "Thực tập doanh nghiệp",        credits: 3, semester: 7 },
+      { code: "NCNN",  name: "Nghiên cứu ngôn ngữ",          credits: 3, semester: 7 },
+      // Năm 4 - HK2 (semester 8)
+      { code: "DATN4", name: "Đồ án tốt nghiệp (NNA)",      credits: 5, semester: 8 },
+      { code: "CDTNN", name: "Chuyên đề tốt nghiệp",        credits: 3, semester: 8 },
     ],
     students: [
       { code: "SV016", name: "Cao Thị Rạng",      phone: "0904000001", address: "Đà Nẵng",  classIdx: 0 },
@@ -184,10 +292,14 @@ async function main() {
   // Clean up
   await prisma.gradeComponent.deleteMany();
   await prisma.grade.deleteMany();
+  await prisma.tuitionFeeItem.deleteMany();
+  await prisma.tuitionFee.deleteMany();
+  await prisma.tuitionConfig.deleteMany();
   await prisma.enrollment.deleteMany();
   await prisma.teachingAssignment.deleteMany();
   await prisma.exam.deleteMany();
   await prisma.schedule.deleteMany();
+  await prisma.attendance.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.announcement.deleteMany();
   await prisma.deviceToken.deleteMany();
@@ -203,16 +315,36 @@ async function main() {
   await prisma.classGroup.deleteMany();
   await prisma.department.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.semester.deleteMany();
+  await prisma.room.deleteMany();
+
+  // ─── Rooms ───
+  const roomRecords = [];
+  for (const r of ROOMS) {
+    const rm = await prisma.room.create({
+      data: { name: r, capacity: 60, type: RoomType.THEORY },
+    });
+    roomRecords.push(rm);
+  }
+
+  // ─── Semesters ───
+  const semesterHK1 = await prisma.semester.create({
+    data: { name: "HK1", academicYear: ACADEMIC_YEAR, startDate: new Date("2025-08-15"), endDate: new Date("2025-12-30"), status: SemesterStatus.ONGOING },
+  });
+  const semesterHK2 = await prisma.semester.create({
+    data: { name: "HK2", academicYear: ACADEMIC_YEAR, startDate: new Date("2026-01-15"), endDate: new Date("2026-05-30"), status: SemesterStatus.UPCOMING },
+  });
 
   const commonHash = await bcrypt.hash("123456", 10);
+  const adminHash = await bcrypt.hash("Admin@123", 10);
 
   // ─── Admin ───
   const adminUser = await prisma.user.create({
     data: {
-      email: "admin@school.edu.vn",
+      email: "admin@university.edu",
       fullName: "Quản trị hệ thống",
       role: Role.ADMIN,
-      passwordHash: commonHash,
+      passwordHash: adminHash,
       admin: { create: {} },
     },
   });
@@ -241,6 +373,7 @@ async function main() {
           name: subj.name,
           credits: subj.credits,
           departmentId: department.id,
+          type: (subj.code.startsWith("LLCT") || subj.code.startsWith("TH1") || subj.code.startsWith("AV")) ? SubjectType.GENERAL : SubjectType.SPECIALIZED,
         },
       });
       subjectRecords.push({ ...s, semester: subj.semester });
@@ -251,7 +384,7 @@ async function main() {
       data: {
         departmentId: department.id,
         name: dept.curriculumName,
-        totalSemesters: 4,
+        totalSemesters: 8,
         subjects: {
           create: subjectRecords.map((s) => ({
             subjectId: s.id,
@@ -283,19 +416,21 @@ async function main() {
       lecturerRecords.push(u.lecturer);
     }
 
-    // Sections for HK1 & HK2 (semester 1 & 2 of curriculum) for each class
+    // Sections: semester 1 = HK1 Year1, semester 2 = HK2 Year1
+    // Students are year 1 (2025-2026), so create sections for semester 1 & 2
     const sectionRecords = [];
     for (const cg of classGroups) {
       for (const subj of subjectRecords) {
-        if (subj.semester > 2) continue; // Only open sections for first 2 semesters
-        const hk = `HK${subj.semester}`;
+        if (subj.semester > 2) continue; // Only open sections for year 1
+        // semester 1 (odd) = HK1, semester 2 (even) = HK2
+        const hk = subj.semester % 2 === 1 ? semesterHK1.id : semesterHK2.id;
         const sec = await prisma.section.create({
           data: {
             code: `${subj.code}-${cg.code}-2526`,
             subjectId: subj.id,
             classGroupId: cg.id,
-            semester: hk,
-            academicYear: ACADEMIC_YEAR,
+            semesterId: hk,
+            capacity: 40,
           },
         });
         sectionRecords.push({ ...sec, _subj: subj, _cg: cg });
@@ -316,17 +451,13 @@ async function main() {
     // Schedules: 2 sessions per section
     for (const sec of sectionRecords) {
       const day1 = nextDay();
-      const slot1 = nextSlot();
-      const room1 = nextRoom();
       let day2 = nextDay();
       if (day2 === day1) day2 = day2 >= 7 ? 2 : day2 + 1;
-      const slot2 = nextSlot();
-      const room2 = nextRoom();
 
       await prisma.schedule.createMany({
         data: [
-          { sectionId: sec.id, dayOfWeek: day1, startTime: slot1.start, endTime: slot1.end, room: room1 },
-          { sectionId: sec.id, dayOfWeek: day2, startTime: slot2.start, endTime: slot2.end, room: room2 },
+          { sectionId: sec.id, dayOfWeek: day1, shift: 1, roomId: roomRecords[Math.floor(Math.random() * roomRecords.length)].id },
+          { sectionId: sec.id, dayOfWeek: day2, shift: 2, roomId: roomRecords[Math.floor(Math.random() * roomRecords.length)].id },
         ],
       });
     }
@@ -339,7 +470,7 @@ async function main() {
         data: {
           sectionId: sec.id,
           examDate: new Date(`2026-01-${String(examDay).padStart(2, "0")}T08:00:00Z`),
-          room: nextRoom(),
+          roomId: roomRecords[Math.floor(Math.random() * roomRecords.length)].id,
           type: "Cuối kỳ",
         },
       });
@@ -434,6 +565,15 @@ async function main() {
       createdById: adminUser.id,
     },
   });
+
+  // Tuition Config: credit price for 2025-2026
+  await prisma.tuitionConfig.createMany({
+    data: [
+      { semesterId: semesterHK1.id, creditPrice: 500000, isActive: true },
+      { semesterId: semesterHK2.id, creditPrice: 500000, isActive: true },
+    ],
+  });
+  console.log("  ✓ Cấu hình giá tín chỉ: 500.000đ/TC cho 2025-2026 HK1 & HK2");
 
   // Notifications for first student of each dept
   const firstStudents = await prisma.student.findMany({

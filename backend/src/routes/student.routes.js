@@ -6,10 +6,20 @@ import {
   listGrades,
   listNotifications,
   listTimetable,
+  listTuitionFees,
   markNotificationRead,
   updateProfile,
+  listAttendance,
+  listAvailableSections,
+  registerSection,
+  dropSection,
 } from "../controllers/student.controller.js";
-import { updateStudentProfileSchema } from "../validators/student.validator.js";
+import {
+  availableSectionsQuerySchema,
+  dropSectionSchema,
+  registerSectionSchema,
+  updateStudentProfileSchema,
+} from "../validators/student.validator.js";
 import { validate } from "../middleware/validate.js";
 
 export const studentRouter = Router();
@@ -21,5 +31,11 @@ studentRouter.put("/profile", validate(updateStudentProfileSchema), updateProfil
 studentRouter.get("/timetable", listTimetable);
 studentRouter.get("/exams", listExams);
 studentRouter.get("/grades", listGrades);
+studentRouter.get("/tuition-fees", listTuitionFees);
 studentRouter.get("/notifications", listNotifications);
 studentRouter.patch("/notifications/:id/read", markNotificationRead);
+studentRouter.get("/attendance", listAttendance);
+
+studentRouter.get("/enrollments/available", validate(availableSectionsQuerySchema), listAvailableSections);
+studentRouter.post("/enrollments", validate(registerSectionSchema), registerSection);
+studentRouter.delete("/enrollments/:sectionId", validate(dropSectionSchema), dropSection);

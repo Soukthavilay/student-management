@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import TableCard from "../components/TableCard";
 import FormField from "../components/FormField";
@@ -14,6 +14,7 @@ const schema = z.object({
 });
 
 export default function AssignmentsPage() {
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({ resolver: zodResolver(schema) });
@@ -30,8 +31,21 @@ export default function AssignmentsPage() {
 
   const assignMutation = useMutation({
     mutationFn: (p) => api.admin.assignLecturer(p),
-    onSuccess: () => { reset(); setShowForm(false); showToast("Phân công thành công"); },
+    onSuccess: () => {
+      reset();
+      setShowForm(false);
+      queryClient.invalidateQueries({ queryKey: ["admin-assignments"] });
+      showToast("Phân công thành công");
+    },
     onError: (e) => showToast(e?.response?.data?.message || "Phân công thất bại", "error"),
+  });
+
+  const assignmentsQuery = useQuery({
+    queryKey: ["admin-assignments"],
+    queryFn: async () => {
+      const res = await api.admin.listAssignments();
+      return res.data?.data || [];
+    },
   });
 
   return (
@@ -74,6 +88,52 @@ export default function AssignmentsPage() {
 
       <TableCard title="Hướng dẫn">
         <p className="py-8 text-center text-sm text-slate-400">Gán giảng viên phụ trách từng học phần. Chọn "Thêm phân công" để bắt đầu.</p>
+      </TableCard>
+
+      <TableCard
+        title="Danh sách phân công"
+        actions={
+          <button
+            type="button"
+            className="rounded border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["admin-assignments"] })}
+          >
+            Làm mới
+          </button>
+        }
+      >
+        {assignmentsQuery.isLoading ? (
+          <p className="py-6 text-center text-sm text-slate-400">Đang tải...</p>
+        ) : (assignmentsQuery.data || []).length === 0 ? (
+          <p className="py-6 text-center text-sm text-slate-400">Chưa có phân công</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
+                  <th className="py-3 px-2 font-medium">Học phần</th>
+                  <th className="py-3 px-2 font-medium">Môn</th>
+                  <th className="py-3 px-2 font-medium">Học kỳ</th>
+                  <th className="py-3 px-2 font-medium">Lớp (nếu có)</th>
+                  <th className="py-3 px-2 font-medium">Giảng viên</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(assignmentsQuery.data || []).map((item) => (
+                  <tr key={item.id} className="border-t border-slate-50 hover:bg-slate-50">
+                    <td className="py-3 px-2 font-mono text-xs text-slate-700">{item.section?.code}</td>
+                    <td className="py-3 px-2">{item.section?.subject?.name}</td>
+                    <td className="py-3 px-2 text-slate-600">
+                      {item.section?.semester?.name} ({item.section?.semester?.academicYear})
+                    </td>
+                    <td className="py-3 px-2 text-slate-600">{item.section?.classGroup?.code || "-"}</td>
+                    <td className="py-3 px-2 font-medium">{item.lecturer?.user?.fullName}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </TableCard>
     </div>
   );

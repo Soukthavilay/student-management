@@ -8,12 +8,15 @@ import {
   upsertGrade,
   createLecturerAnnouncement,
   listLecturerAnnouncements,
+  listAttendance,
+  markAttendance,
 } from "../controllers/lecturer.controller.js";
 import {
   sectionParamsSchema,
   submitGradeSchema,
   upsertGradeSchema,
   createLecturerAnnouncementSchema,
+  markAttendanceSchema,
 } from "../validators/lecturer.validator.js";
 import { validate } from "../middleware/validate.js";
 
@@ -33,3 +36,6 @@ lecturerRouter.post("/grades/submit", validate(submitGradeSchema), submitGrade);
 
 lecturerRouter.get("/announcements", listLecturerAnnouncements);
 lecturerRouter.post("/announcements", validate(createLecturerAnnouncementSchema), createLecturerAnnouncement);
+
+lecturerRouter.get("/attendance", listAttendance);
+lecturerRouter.post("/attendance", validate(markAttendanceSchema), markAttendance);

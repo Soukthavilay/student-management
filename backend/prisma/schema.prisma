@@ -18,6 +18,38 @@ enum Platform {
   ANDROID
 }
 
+enum SemesterStatus {
+  UPCOMING
+  ENROLLMENT
+  ONGOING
+  COMPLETED
+}
+
+enum RoomType {
+  THEORY
+  LAB
+}
+
+enum SubjectType {
+  GENERAL
+  SPECIALIZED
+}
+
+enum StudentStatus {
+  ACTIVE
+  RESERVATION
+  SUSPENDED
+  GRADUATED
+  DROPPED_OUT
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  EXCUSED
+  LATE
+}
+
 enum GradeStatus {
   DRAFT
   SUBMITTED
@@ -28,17 +60,18 @@ enum AnnouncementScope {
   DEPARTMENT
   CLASS
   SECTION
+  SEMESTER
 }
 
 model User {
-  id           Int       @id @default(autoincrement())
-  email        String    @unique
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
   passwordHash String
   fullName     String
   role         Role
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   admin         Admin?
   student       Student?
@@ -86,29 +119,35 @@ model ClassGroup {
 }
 
 model Student {
-  id           Int    @id @default(autoincrement())
-  userId       Int    @unique
-  studentCode  String @unique
+  id           Int           @id @default(autoincrement())
+  userId       Int           @unique
+  studentCode  String        @unique
   departmentId Int
   classGroupId Int
+  curriculumId Int?
   phone        String?
   address      String?
+  status       StudentStatus @default(ACTIVE)
 
   currentSemester Int @default(1)
 
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  department  Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  classGroup  ClassGroup @relation(fields: [classGroupId], references: [id], onDelete: Restrict)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department  Department   @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  classGroup  ClassGroup   @relation(fields: [classGroupId], references: [id], onDelete: Restrict)
+  curriculum  Curriculum?  @relation(fields: [curriculumId], references: [id], onDelete: Restrict)
   enrollments Enrollment[]
+  tuitionFees TuitionFee[]
+  attendances Attendance[]
 
   @@index([classGroupId])
   @@index([departmentId])
+  @@index([curriculumId])
 }
 
 model Lecturer {
-  id           Int    @id @default(autoincrement())
-  userId       Int    @unique
-  lecturerCode String @unique
+  id           Int     @id @default(autoincrement())
+  userId       Int     @unique
+  lecturerCode String  @unique
   departmentId Int
   title        String?
 
@@ -120,10 +159,11 @@ model Lecturer {
 }
 
 model Subject {
-  id           Int    @id @default(autoincrement())
-  code         String @unique
+  id           Int         @id @default(autoincrement())
+  code         String      @unique
   name         String
   credits      Int
+  type         SubjectType @default(SPECIALIZED)
   departmentId Int
 
   department         Department          @relation(fields: [departmentId], references: [id], onDelete: Restrict)
@@ -134,15 +174,16 @@ model Subject {
 }
 
 model Curriculum {
-  id           Int    @id @default(autoincrement())
-  departmentId Int    @unique
-  name         String
-  totalSemesters Int  @default(4)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             Int      @id @default(autoincrement())
+  departmentId   Int      @unique
+  name           String
+  totalSemesters Int      @default(8)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   department Department          @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   subjects   CurriculumSubject[]
+  students   Student[]
 }
 
 model CurriculumSubject {
@@ -162,19 +203,22 @@ model Section {
   id           Int    @id @default(autoincrement())
   code         String @unique
   subjectId    Int
+  semesterId   Int
   classGroupId Int?
-  semester     String
-  academicYear String
+  capacity     Int    @default(40)
 
-  subject             Subject               @relation(fields: [subjectId], references: [id], onDelete: Restrict)
-  classGroup          ClassGroup?           @relation(fields: [classGroupId], references: [id], onDelete: SetNull)
+  subject             Subject              @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  semester            Semester             @relation(fields: [semesterId], references: [id], onDelete: Restrict)
+  classGroup          ClassGroup?          @relation(fields: [classGroupId], references: [id], onDelete: SetNull)
   teachingAssignments TeachingAssignment[]
   enrollments         Enrollment[]
   schedules           Schedule[]
   exams               Exam[]
   announcements       Announcement[]
+  attendances         Attendance[]
 
   @@index([subjectId])
+  @@index([semesterId])
   @@index([classGroupId])
 }
 
@@ -197,9 +241,10 @@ model Enrollment {
   studentId Int
   createdAt DateTime @default(now())
 
-  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  grade   Grade?
+  section         Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  student         Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  grade           Grade?
+  tuitionFeeItems TuitionFeeItem[]
 
   @@unique([sectionId, studentId])
   @@index([studentId])
@@ -214,7 +259,7 @@ model Grade {
   submittedAt  DateTime?
   updatedAt    DateTime    @updatedAt
 
-  enrollment Enrollment      @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  enrollment Enrollment       @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   components GradeComponent[]
 }
 
@@ -231,30 +276,35 @@ model GradeComponent {
 }
 
 model Schedule {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   sectionId Int
+  roomId    Int?
   dayOfWeek Int
-  startTime String
-  endTime   String
-  room      String?
+  shift     Int?
+  startTime String?
+  endTime   String?
   weekStart DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  room    Room?   @relation(fields: [roomId], references: [id], onDelete: SetNull)
 
   @@index([sectionId])
+  @@index([roomId])
 }
 
 model Exam {
   id        Int      @id @default(autoincrement())
   sectionId Int
+  roomId    Int?
   examDate  DateTime
-  room      String?
   type      String
 
   section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  room    Room?   @relation(fields: [roomId], references: [id], onDelete: SetNull)
 
   @@index([sectionId])
+  @@index([roomId])
 }
 
 model Announcement {
@@ -265,12 +315,14 @@ model Announcement {
   departmentId Int?
   classGroupId Int?
   sectionId    Int?
+  semesterId   Int?
   createdById  Int
   createdAt    DateTime          @default(now())
 
   department    Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   classGroup    ClassGroup?    @relation(fields: [classGroupId], references: [id], onDelete: SetNull)
   section       Section?       @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  semester      Semester?      @relation(fields: [semesterId], references: [id], onDelete: SetNull)
   createdBy     User           @relation("AnnouncementCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   notifications Notification[]
 
@@ -278,13 +330,13 @@ model Announcement {
 }
 
 model Notification {
-  id             Int       @id @default(autoincrement())
+  id             Int      @id @default(autoincrement())
   userId         Int
   announcementId Int?
   title          String
   body           String
-  isRead         Boolean   @default(false)
-  createdAt      DateTime  @default(now())
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   announcement Announcement? @relation(fields: [announcementId], references: [id], onDelete: SetNull)
@@ -330,4 +382,95 @@ model AuditLog {
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
+}
+
+model TuitionFee {
+  id         Int      @id @default(autoincrement())
+  studentId  Int
+  semesterId Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  student  Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  semester Semester         @relation(fields: [semesterId], references: [id], onDelete: Restrict)
+  items    TuitionFeeItem[]
+
+  @@unique([studentId, semesterId])
+  @@index([studentId])
+  @@index([semesterId])
+}
+
+model TuitionFeeItem {
+  id           Int       @id @default(autoincrement())
+  tuitionFeeId Int
+  enrollmentId Int?
+  name         String
+  credits      Int       @default(0)
+  creditPrice  Float     @default(0)
+  amountDue    Float     @default(0)
+  amountPaid   Float     @default(0)
+  discount     Float     @default(0)
+  debt         Float     @default(0)
+  paidAt       DateTime?
+
+  tuitionFee TuitionFee  @relation(fields: [tuitionFeeId], references: [id], onDelete: Cascade)
+  enrollment Enrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+
+  @@index([tuitionFeeId])
+  @@index([enrollmentId])
+}
+
+model TuitionConfig {
+  id          Int      @id @default(autoincrement())
+  semesterId  Int      @unique
+  creditPrice Float    @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  semester Semester @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+}
+
+model Semester {
+  id           Int            @id @default(autoincrement())
+  name         String
+  academicYear String
+  startDate    DateTime
+  endDate      DateTime
+  status       SemesterStatus @default(UPCOMING)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  sections       Section[]
+  tuitionFees    TuitionFee[]
+  tuitionConfigs TuitionConfig[]
+  announcements  Announcement[]
+}
+
+model Room {
+  id       Int      @id @default(autoincrement())
+  name     String   @unique
+  capacity Int      @default(40)
+  type     RoomType @default(THEORY)
+
+  schedules Schedule[]
+  exams     Exam[]
+}
+
+model Attendance {
+  id        Int              @id @default(autoincrement())
+  sectionId Int
+  studentId Int
+  date      DateTime
+  status    AttendanceStatus
+  note      String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, studentId, date])
+  @@index([sectionId])
+  @@index([studentId])
 }

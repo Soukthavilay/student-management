@@ -105,8 +105,8 @@ export default function LecturerTimetablePage() {
                             section.schedules.map((s, idx) => (
                               <div key={idx} className="text-xs">
                                 <span className="font-medium">{DAY_NAMES[s.dayOfWeek] || s.dayOfWeek}</span>
-                                <span className="text-slate-500">: {s.startTime}-{s.endTime}</span>
-                                <span className="text-slate-400 ml-1">({s.room})</span>
+                                <span className="text-slate-500">: {s.shift ? `Ca ${s.shift}` : `${s.startTime}-${s.endTime}`}</span>
+                                <span className="text-slate-400 ml-1">({s.room?.name || s.room || "Không có phòng"})</span>
                               </div>
                             ))
                           ) : (

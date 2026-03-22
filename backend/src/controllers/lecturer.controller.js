@@ -44,8 +44,9 @@ export async function listAssignedSections(req, res, next) {
           select: {
             id: true,
             code: true,
-            semester: true,
-            academicYear: true,
+            semester: {
+              select: { id: true, name: true, academicYear: true }
+            },
             subject: {
               select: {
                 code: true,
@@ -69,7 +70,11 @@ export async function listAssignedSections(req, res, next) {
     });
 
     return res.json({
-      sections: sections.map((item) => item.section),
+      sections: sections.map((item) => ({
+        ...item.section,
+        semester: item.section.semester.name,
+        academicYear: item.section.semester.academicYear,
+      })),
     });
   } catch (error) {
     return next(error);
@@ -135,8 +140,9 @@ export async function listTimetable(req, res, next) {
           select: {
             id: true,
             code: true,
-            semester: true,
-            academicYear: true,
+            semester: {
+              select: { id: true, name: true, academicYear: true }
+            },
             subject: {
               select: {
                 id: true,
@@ -163,9 +169,10 @@ export async function listTimetable(req, res, next) {
               select: {
                 id: true,
                 dayOfWeek: true,
-                startTime: true,
-                endTime: true,
-                room: true,
+                shift: true,
+                room: {
+                  select: { id: true, name: true }
+                },
               },
               orderBy: {
                 dayOfWeek: "asc",
@@ -181,6 +188,8 @@ export async function listTimetable(req, res, next) {
 
     const timetable = assignments.map((item) => ({
       ...item.section,
+      semester: item.section.semester.name,
+      academicYear: item.section.semester.academicYear,
       department: item.section.classGroup?.department,
     }));
 
@@ -444,7 +453,84 @@ export async function listLecturerAnnouncements(req, res, next) {
       orderBy: { createdAt: "desc" },
     });
 
-    return res.json({ announcements });
+    return res.json({ data: announcements });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+// ── Attendance Management ──
+export async function listAttendance(req, res, next) {
+  try {
+    const { sectionId, date } = req.query;
+    if (!sectionId || !date) {
+      throw badRequest("sectionId and date are required");
+    }
+
+    const attendance = await prisma.attendance.findMany({
+      where: {
+        sectionId: Number(sectionId),
+        date: new Date(date),
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            studentCode: true,
+            user: { select: { fullName: true } },
+          },
+        },
+      },
+    });
+
+    return res.json({ data: attendance });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function markAttendance(req, res, next) {
+  try {
+    const { sectionId, date, attendanceData } = req.body;
+    
+    if (!sectionId || !date || !attendanceData) {
+      throw badRequest("sectionId, date, and attendanceData are required");
+    }
+
+    const results = await prisma.$transaction(
+      attendanceData.map((ad) =>
+        prisma.attendance.upsert({
+          where: {
+            studentId_sectionId_date: {
+              studentId: ad.studentId,
+              sectionId: Number(sectionId),
+              date: new Date(date),
+            },
+          },
+          update: {
+            status: ad.status,
+            remark: ad.remark,
+          },
+          create: {
+            studentId: ad.studentId,
+            sectionId: Number(sectionId),
+            date: new Date(date),
+            status: ad.status,
+            remark: ad.remark,
+          },
+        })
+      )
+    );
+
+    await createAuditLog({
+      userId: req.user.id,
+      action: "MARK_ATTENDANCE",
+      entity: "Attendance",
+      entityId: Number(sectionId),
+      metadata: { sectionId, date, count: results.length },
+    });
+
+    return res.json({ data: results });
   } catch (error) {
     return next(error);
   }

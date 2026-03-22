@@ -28,6 +28,16 @@ export const api = {
     deleteSubject: (id) => http.delete(`/admin/subjects/${id}`),
 
     sections: () => http.get("/admin/sections"),
+    semesters: () => http.get("/admin/semesters"),
+    createSemester: (payload) => http.post("/admin/semesters", payload),
+    updateSemester: (id, payload) => http.put(`/admin/semesters/${id}`, payload),
+    deleteSemester: (id) => http.delete(`/admin/semesters/${id}`),
+
+    rooms: () => http.get("/admin/rooms"),
+    createRoom: (payload) => http.post("/admin/rooms", payload),
+    updateRoom: (id, payload) => http.put(`/admin/rooms/${id}`, payload),
+    deleteRoom: (id) => http.delete(`/admin/rooms/${id}`),
+
     createSection: (payload) => http.post("/admin/sections", payload),
     updateSection: (id, payload) => http.put(`/admin/sections/${id}`, payload),
     deleteSection: (id) => http.delete(`/admin/sections/${id}`),
@@ -52,6 +62,8 @@ export const api = {
     assignLecturer: (payload) => http.post("/admin/assignments", payload),
     createAnnouncement: (payload) => http.post("/admin/announcements", payload),
 
+    createEnrollment: (payload) => http.post("/admin/enrollments", payload),
+
     getCurriculum: (departmentId) =>
       http.get("/admin/curriculum", { params: { departmentId } }),
     upsertCurriculum: (payload) => http.post("/admin/curriculum", payload),
@@ -61,6 +73,16 @@ export const api = {
       http.delete(`/admin/curriculum/subjects/${id}`),
     enrollBySemester: (payload) =>
       http.post("/admin/enrollments/semester", payload),
+
+    tuitionFees: (params) => http.get("/admin/tuition-fees", { params }),
+    generateTuitionFees: (payload) => http.post("/admin/tuition-fees/generate", payload),
+    updateTuitionFeeItem: (id, payload) => http.put(`/admin/tuition-fees/items/${id}`, payload),
+    deleteTuitionFee: (id) => http.delete(`/admin/tuition-fees/${id}`),
+    tuitionConfigs: () => http.get("/admin/tuition-configs"),
+    upsertTuitionConfig: (payload) => http.post("/admin/tuition-configs", payload),
+    deleteTuitionConfig: (id) => http.delete(`/admin/tuition-configs/${id}`),
+
+    listAssignments: () => http.get("/admin/assignments"),
   },
   lecturer: {
     sections: () => http.get("/lecturer/sections"),
@@ -70,5 +92,7 @@ export const api = {
     submitGrade: (payload) => http.post("/lecturer/grades/submit", payload),
     announcements: () => http.get("/lecturer/announcements"),
     createAnnouncement: (payload) => http.post("/lecturer/announcements", payload),
+    getAttendance: (params) => http.get("/lecturer/attendance", { params }),
+    markAttendance: (payload) => http.post("/lecturer/attendance", payload),
   },
 };

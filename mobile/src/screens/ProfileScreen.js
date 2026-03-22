@@ -149,6 +149,19 @@ export default function ProfileScreen() {
             </View>
           </View>
 
+          {/* Enrollment Button */}
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: colors.card, shadowColor: colors.cardShadow }]}
+            onPress={() => navigation.navigate('Enrollment')}
+          >
+            <Ionicons name="add-circle-outline" size={20} color={colors.success} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.actionLabel, { color: colors.text }]}>Đăng ký học phần</Text>
+              <Text style={{ fontSize: FontSize.xs, color: colors.textTertiary }}>Học kỳ mới đang mở</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+          </TouchableOpacity>
+
           {/* Curriculum Button */}
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.card, shadowColor: colors.cardShadow }]}
@@ -156,6 +169,16 @@ export default function ProfileScreen() {
           >
             <Ionicons name="school-outline" size={20} color={colors.accent} />
             <Text style={[styles.actionLabel, { color: colors.text }]}>Chương trình đào tạo</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+          </TouchableOpacity>
+
+          {/* Tuition Fee Button */}
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: colors.card, shadowColor: colors.cardShadow }]}
+            onPress={() => navigation.navigate('Tuition')}
+          >
+            <Ionicons name="cash-outline" size={20} color={colors.accent} />
+            <Text style={[styles.actionLabel, { color: colors.text }]}>Chi tiết học phí</Text>
             <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
           </TouchableOpacity>
 

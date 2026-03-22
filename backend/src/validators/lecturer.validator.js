@@ -43,3 +43,19 @@ export const createLecturerAnnouncementSchema = z.object({
     sectionId: z.coerce.number().int().positive().optional().nullable(),
   }),
 });
+
+export const markAttendanceSchema = z.object({
+  params: z.object({}).passthrough(),
+  query: z.object({}).passthrough(),
+  body: z.object({
+    sectionId: z.coerce.number().int().positive(),
+    date: z.coerce.date(),
+    attendanceData: z.array(
+      z.object({
+        studentId: z.coerce.number().int().positive(),
+        status: z.enum(["PRESENT", "ABSENT", "LATE", "EXCUSED"]),
+        remark: z.string().optional().nullable(),
+      })
+    ).min(1),
+  }),
+});

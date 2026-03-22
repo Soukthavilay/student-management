@@ -6,6 +6,7 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +17,7 @@ import { Colors, Spacing, FontSize, BorderRadius } from '../constants/theme';
 
 const DAY_NAMES = ['', '', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'];
 
-export default function TimetableScreen() {
+export default function TimetableScreen({ navigation }) {
   const { isDark } = useAuth();
   const colors = isDark ? Colors.dark : Colors.light;
 
@@ -68,7 +69,7 @@ export default function TimetableScreen() {
     .map(Number)
     .sort((a, b) => a - b);
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 100 }} />
@@ -76,14 +77,26 @@ export default function TimetableScreen() {
     );
   }
 
+  const semesterLabel = () => {
+    if (timetable.length === 0) return 'Không có dữ liệu';
+    const first = timetable[0];
+    const semesterName = typeof first.semester === 'object' ? first.semester?.name : first.semester;
+    const academicYear = typeof first.academicYear === 'object' ? first.academicYear?.name : first.academicYear;
+    return `${semesterName || 'Học kỳ'}${academicYear ? ` — ${academicYear}` : ''}`;
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <Text style={styles.headerTitle}>Thời Khóa Biểu</Text>
+        <View style={styles.headerTopRow}>
+          <Text style={styles.headerTitle}>Thời khóa biểu</Text>
+          <TouchableOpacity style={styles.enrollButton} onPress={() => navigation.navigate('Enrollment')}>
+            <Ionicons name="add-circle" size={18} color="#fff" style={{ marginRight: 6 }} />
+            <Text style={styles.enrollButtonText}>Đăng ký HP</Text>
+          </TouchableOpacity>
+        </View>
         <Text style={styles.headerSubtitle}>
-          {timetable.length > 0
-            ? `${timetable[0]?.semester} — ${timetable[0]?.academicYear}`
-            : 'Không có dữ liệu'}
+          {semesterLabel()}
         </Text>
       </View>
 
@@ -107,7 +120,11 @@ export default function TimetableScreen() {
                 <Text style={styles.dayBadgeText}>{DAY_NAMES[day] || `Ngày ${day}`}</Text>
               </View>
               {groupedByDay[day]
-                .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                .sort((a, b) => {
+                  const shiftDiff = (a.shift ?? 99) - (b.shift ?? 99);
+                  if (shiftDiff !== 0) return shiftDiff;
+                  return (a.startTime || '').localeCompare(b.startTime || '');
+                })
                 .map((item, idx) => (
                   <View
                     key={idx}
@@ -158,6 +175,11 @@ export default function TimetableScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   header: {
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.lg,
@@ -169,6 +191,19 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xxl,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  enrollButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2f6eed',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  enrollButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 12,
   },
   headerSubtitle: {
     fontSize: FontSize.sm,

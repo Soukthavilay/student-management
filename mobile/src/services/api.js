@@ -11,10 +11,16 @@ export const api = {
     getTimetable: () => http.get('/student/timetable'),
     getExams: () => http.get('/student/exams'),
     getGrades: () => http.get('/student/grades'),
+    getTuitionFees: () => http.get('/student/tuition-fees'),
     getNotifications: (params) =>
       http.get('/student/notifications', { params }),
     markNotificationRead: (id) =>
       http.patch(`/student/notifications/${id}/read`),
+    getAttendance: (params) => http.get('/student/attendance', { params }),
+    getAvailableSections: (params) =>
+      http.get('/student/enrollments/available', { params }),
+    registerSection: (payload) => http.post('/student/enrollments', payload),
+    dropSection: (sectionId) => http.delete(`/student/enrollments/${sectionId}`),
   },
   notifications: {
     registerDevice: (payload) =>

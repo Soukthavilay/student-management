@@ -1,6 +1,6 @@
-import { useParams, Link } from "react-router-dom";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useParams, Link } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 
 function formatDate(dateStr) {
@@ -171,14 +171,50 @@ function ExtraCoursesTable({ enrollments }) {
 
 export default function StudentDetailPage() {
   const { id } = useParams();
+  const queryClient = useQueryClient();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({
+    academicStatus: "",
+    classGroupId: "",
+    isActive: true,
+  });
+
+  const { data: classGroups = [] } = useQuery({
+    queryKey: ["admin-class-groups"],
+    queryFn: async () => {
+      const res = await api.admin.classGroups();
+      return res.data?.data || [];
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (payload) => api.admin.updateStudent(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["student-detail", id] });
+      setIsEditing(false);
+    },
+  });
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["student-detail", id],
     queryFn: async () => {
       const response = await api.admin.getStudent(id);
-      return response.data.data;
+      const student = response.data.data;
+      setEditData({
+        academicStatus: student.academicStatus,
+        classGroupId: student.classGroupId?.toString() || "",
+        isActive: student.user.isActive,
+      });
+      return student;
     },
   });
+
+  const handleSave = () => {
+    updateMutation.mutate({
+      ...editData,
+      classGroupId: editData.classGroupId ? Number(editData.classGroupId) : null,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -218,25 +254,101 @@ export default function StudentDetailPage() {
           <h1 className="text-xl font-semibold text-slate-900">{data.user.fullName}</h1>
           <p className="text-sm text-slate-500">Mã SV: <span className="font-mono">{data.studentCode}</span></p>
         </div>
-        <span className={`rounded px-2.5 py-1 text-xs font-medium ${data.user.isActive ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-          {data.user.isActive ? "Hoạt động" : "Đã khóa"}
-        </span>
+        {!isEditing ? (
+          <div className="flex items-center gap-3">
+            <span className={`rounded px-2.5 py-1 text-xs font-medium ${data.user.isActive ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+              {data.user.isActive ? "Hoạt động" : "Đã khóa"}
+            </span>
+            <button 
+              onClick={() => setIsEditing(true)}
+              className="rounded-md bg-white border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Chỉnh sửa
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleSave}
+              disabled={updateMutation.isPending}
+              className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+            >
+              Lưu thay đổi
+            </button>
+            <button 
+              onClick={() => setIsEditing(false)}
+              className="rounded-md bg-white border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Hủy
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Info */}
       <div className="rounded-lg border border-slate-200 bg-white">
         <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-slate-100">
-          {[
-            { label: "Email", value: data.user.email },
-            { label: "Khoa", value: data.department?.name || "-" },
-            { label: "Lớp", value: data.classGroup ? `${data.classGroup.code} - ${data.classGroup.name}` : "-" },
-            { label: "Học kỳ hiện tại", value: data.currentSemester ? `Kỳ ${data.currentSemester}` : "Kỳ 1" },
-          ].map((item) => (
-            <div key={item.label} className="p-4">
-              <p className="text-xs text-slate-400">{item.label}</p>
-              <p className="mt-1 text-sm font-medium text-slate-800 truncate">{item.value}</p>
-            </div>
-          ))}
+          <div className="p-4">
+            <p className="text-xs text-slate-400">Trạng thái học tập</p>
+            {isEditing ? (
+              <select 
+                className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm focus:border-slate-900 focus:outline-none"
+                value={editData.academicStatus}
+                onChange={(e) => setEditData({...editData, academicStatus: e.target.value})}
+              >
+                <option value="ACTIVE">Chính quy (Active)</option>
+                <option value="SUSPENDED">Bảo lưu (Suspended)</option>
+                <option value="DROPPED">Thôi học (Dropped)</option>
+                <option value="GRADUATED">Tốt nghiệp (Graduated)</option>
+              </select>
+            ) : (
+              <p className="mt-1 text-sm font-medium text-slate-800">
+                {data.academicStatus === "ACTIVE" ? "Đang học" : 
+                 data.academicStatus === "SUSPENDED" ? "Bảo lưu" :
+                 data.academicStatus === "DROPPED" ? "Thôi học" : "Tốt nghiệp"}
+              </p>
+            )}
+          </div>
+          <div className="p-4">
+            <p className="text-xs text-slate-400">Tài khoản</p>
+            {isEditing ? (
+              <select 
+                className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm focus:border-slate-900 focus:outline-none"
+                value={editData.isActive ? "true" : "false"}
+                onChange={(e) => setEditData({...editData, isActive: e.target.value === "true"})}
+              >
+                <option value="true">Hoạt động</option>
+                <option value="false">Khóa tài khoản</option>
+              </select>
+            ) : (
+              <p className={`mt-1 text-sm font-medium ${data.user.isActive ? "text-green-600" : "text-red-600"}`}>
+                {data.user.isActive ? "Đang hoạt động" : "Đã bị khóa"}
+              </p>
+            )}
+          </div>
+          <div className="p-4">
+            <p className="text-xs text-slate-400">Lớp</p>
+            {isEditing ? (
+              <select 
+                className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm focus:border-slate-900 focus:outline-none"
+                value={editData.classGroupId}
+                onChange={(e) => setEditData({...editData, classGroupId: e.target.value})}
+              >
+                <option value="">Chọn lớp</option>
+                {classGroups.map(cg => (
+                  <option key={cg.id} value={cg.id}>{cg.code} - {cg.name}</option>
+                ))}
+              </select>
+            ) : (
+              <p className="mt-1 text-sm font-medium text-slate-800 truncate">
+                {data.classGroup ? `${data.classGroup.code}` : "-"}
+              </p>
+            )}
+          </div>
+          <div className="p-4">
+            <p className="text-xs text-slate-400">Học kỳ hiện tại</p>
+            <p className="mt-1 text-sm font-medium text-slate-800">Kỳ {data.currentSemester || 1}</p>
+          </div>
         </div>
         <div className="grid grid-cols-2 divide-x divide-slate-100 border-t border-slate-100">
           <div className="p-4">

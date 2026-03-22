@@ -1,6 +1,6 @@
 import { prisma } from "../lib/prisma.js";
 
-export async function resolveAnnouncementTargetUserIds({ scope, departmentId, classGroupId, sectionId }) {
+export async function resolveAnnouncementTargetUserIds({ scope, departmentId, classGroupId, sectionId, semesterId }) {
   if (scope === "ALL") {
     const users = await prisma.user.findMany({
       where: {
@@ -41,6 +41,20 @@ export async function resolveAnnouncementTargetUserIds({ scope, departmentId, cl
     });
 
     return enrollments.map((enrollment) => enrollment.student.userId);
+  }
+
+  if (scope === "SEMESTER") {
+    const enrollments = await prisma.enrollment.findMany({
+      where: {
+        section: { semesterId },
+      },
+      include: {
+        student: {
+          select: { userId: true },
+        },
+      },
+    });
+    return [...new Set(enrollments.map((e) => e.student.userId))];
   }
 
   return [];

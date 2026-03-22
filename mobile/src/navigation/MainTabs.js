@@ -10,11 +10,13 @@ import ExamsScreen from '../screens/ExamsScreen';
 import GradesScreen from '../screens/GradesScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import EnrollmentScreen from '../screens/EnrollmentScreen';
 
 const Tab = createBottomTabNavigator();
 
 const TAB_ICONS = {
   Timetable: { focused: 'calendar', unfocused: 'calendar-outline' },
+  Enrollment: { focused: 'add-circle', unfocused: 'add-circle-outline' },
   Exams: { focused: 'document-text', unfocused: 'document-text-outline' },
   Grades: { focused: 'school', unfocused: 'school-outline' },
   Notifications: {
@@ -57,6 +59,11 @@ export default function MainTabs() {
         name="Timetable"
         component={TimetableScreen}
         options={{ tabBarLabel: 'Lịch học' }}
+      />
+      <Tab.Screen
+        name="Enrollment"
+        component={EnrollmentScreen}
+        options={{ tabBarLabel: 'Đăng ký HP' }}
       />
       <Tab.Screen
         name="Exams"

@@ -17,7 +17,7 @@
     "backend:setup": "npm run prisma:generate --workspace backend && npm run prisma:push --workspace backend && npm run prisma:seed --workspace backend",
     "dev:backend": "npm run dev --workspace backend",
     "dev:web": "npm run dev --workspace web-admin",
-    "dev:mobile": "npm run ios --workspace mobile",
+    "dev:mobile": "npm start --workspace mobile",
     "test:backend": "npm run test --workspace backend"
   }
 }

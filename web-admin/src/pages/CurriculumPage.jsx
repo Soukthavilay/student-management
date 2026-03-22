@@ -11,12 +11,12 @@ export default function CurriculumPage() {
   const [selectedDeptId, setSelectedDeptId] = useState("");
   const [showCurriculumForm, setShowCurriculumForm] = useState(false);
   const [curriculumName, setCurriculumName] = useState("");
-  const [totalSemesters, setTotalSemesters] = useState(4);
+  const [totalSemesters, setTotalSemesters] = useState(8);
   const [addSubjectForm, setAddSubjectForm] = useState({ semester: "", subjectId: "" });
   const [showAddSubject, setShowAddSubject] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, id: null });
 
-  const [enrollForm, setEnrollForm] = useState({ studentId: "", semester: "", academicYear: "2025-2026" });
+  const [enrollForm, setEnrollForm] = useState({ studentId: "", curriculumSemester: "", semesterId: "" });
   const [showEnrollForm, setShowEnrollForm] = useState(false);
 
   const departmentsQuery = useQuery({
@@ -47,6 +47,11 @@ export default function CurriculumPage() {
   const studentsQuery = useQuery({
     queryKey: ["students-all"],
     queryFn: async () => { const r = await api.admin.students({ pageSize: 1000 }); return r.data.data || []; },
+  });
+
+  const semestersQuery = useQuery({
+    queryKey: ["semesters"],
+    queryFn: async () => { const r = await api.admin.semesters(); return r.data.data || []; },
   });
 
   const upsertCurriculumMutation = useMutation({
@@ -84,7 +89,7 @@ export default function CurriculumPage() {
     onSuccess: (res) => {
       queryClient.invalidateQueries();
       setShowEnrollForm(false);
-      setEnrollForm({ studentId: "", semester: "", academicYear: "2025-2026" });
+      setEnrollForm({ studentId: "", curriculumSemester: "", semesterId: "" });
       const count = res.data?.data?.enrolledCount || 0;
       showToast(`Đăng ký thành công ${count} học phần`);
     },
@@ -119,8 +124,10 @@ export default function CurriculumPage() {
   };
 
   const openCurriculumForm = () => {
-    setCurriculumName(curriculum?.name || `CTĐT ${departments.find((d) => d.id === Number(selectedDeptId))?.name || ""}`);
-    setTotalSemesters(curriculum?.totalSemesters || 4);
+    setCurriculumName(
+      curriculum?.name || `CTĐT ${departments.find((d) => d.id === Number(selectedDeptId))?.name || ""}`
+    );
+    setTotalSemesters(curriculum?.totalSemesters || 8);
     setShowCurriculumForm(true);
   };
 
@@ -130,13 +137,23 @@ export default function CurriculumPage() {
         <h1 className="text-xl font-semibold text-slate-900">Chương trình đào tạo</h1>
         <div className="flex gap-3">
           {selectedDeptId && (
-            <button
-              type="button"
-              className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 transition-colors"
-              onClick={() => setShowEnrollForm(!showEnrollForm)}
-            >
-              {showEnrollForm ? "Đóng đăng ký" : "Đăng ký học"}
-            </button>
+            <>
+              <button
+                type="button"
+                className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
+                onClick={openCurriculumForm}
+              >
+                {curriculum ? "Chỉnh sửa CTĐT" : "Tạo CTĐT"}
+              </button>
+
+              <button
+                type="button"
+                className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 transition-colors"
+                onClick={() => setShowEnrollForm(!showEnrollForm)}
+              >
+                {showEnrollForm ? "Đóng đăng ký" : "Đăng ký học"}
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -171,8 +188,8 @@ export default function CurriculumPage() {
               e.preventDefault();
               enrollMutation.mutate({
                 studentId: Number(enrollForm.studentId),
-                semester: Number(enrollForm.semester),
-                academicYear: enrollForm.academicYear,
+                curriculumSemester: Number(enrollForm.curriculumSemester),
+                semesterId: Number(enrollForm.semesterId),
               });
             }}
           >
@@ -193,11 +210,11 @@ export default function CurriculumPage() {
                   ))}
               </select>
             </FormField>
-            <FormField label="Học kỳ">
+            <FormField label="Kỳ (CTĐT)">
               <select
                 className="rounded border border-slate-300 px-3 py-2"
-                value={enrollForm.semester}
-                onChange={(e) => setEnrollForm({ ...enrollForm, semester: e.target.value })}
+                value={enrollForm.curriculumSemester}
+                onChange={(e) => setEnrollForm({ ...enrollForm, curriculumSemester: e.target.value })}
                 required
               >
                 <option value="">Chọn kỳ</option>
@@ -206,14 +223,20 @@ export default function CurriculumPage() {
                 ))}
               </select>
             </FormField>
-            <FormField label="Năm học">
-              <input
+            <FormField label="Học kỳ thực tế">
+              <select
                 className="rounded border border-slate-300 px-3 py-2"
-                value={enrollForm.academicYear}
-                onChange={(e) => setEnrollForm({ ...enrollForm, academicYear: e.target.value })}
-                placeholder="VD: 2025-2026"
+                value={enrollForm.semesterId}
+                onChange={(e) => setEnrollForm({ ...enrollForm, semesterId: e.target.value })}
                 required
-              />
+              >
+                <option value="">Chọn học kỳ</option>
+                {(semestersQuery.data || []).map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.academicYear})
+                  </option>
+                ))}
+              </select>
             </FormField>
             <div className="flex items-end">
               <button
