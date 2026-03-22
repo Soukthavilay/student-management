@@ -558,7 +558,7 @@ export async function registerSection(req, res, next) {
       throw badRequest("Học kỳ này không cho phép đăng ký học phần");
     }
 
-    if (section.subject.type === "SPECIALIZED" && section.subject.departmentId !== student.departmentId) {
+    if (section.subject.type === "DEPARTMENT" && section.subject.departmentId !== student.departmentId) {
       throw badRequest("Bạn không thuộc khoa quản lý môn học chuyên ngành này");
     }
 
