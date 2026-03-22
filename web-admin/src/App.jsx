@@ -14,9 +14,12 @@ import LecturerGradesPage from "./pages/LecturerGradesPage";
 import LecturerTimetablePage from "./pages/LecturerTimetablePage";
 import LecturerAnnouncementsPage from "./pages/LecturerAnnouncementsPage";
 import LecturerAttendancePage from "./pages/LecturerAttendancePage";
+import LecturerAttendanceSchedulePage from "./pages/LecturerAttendanceSchedulePage";
 import CurriculumPage from "./pages/CurriculumPage";
 import TuitionPage from "./pages/TuitionPage";
 import EnrollmentsPage from "./pages/EnrollmentsPage";
+import MajorPage from "./pages/MajorPage";
+import ClassGroupPage from "./pages/ClassGroupPage";
 
 export default function App() {
   return (
@@ -33,6 +36,8 @@ export default function App() {
             <Route path="/lecturers" element={<LecturersPage />} />
             <Route path="/lecturers/:id" element={<LecturerDetailPage />} />
             <Route path="/academics" element={<AcademicsPage />} />
+            <Route path="/majors" element={<MajorPage />} />
+            <Route path="/class-groups" element={<ClassGroupPage />} />
             <Route path="/curriculum" element={<CurriculumPage />} />
             <Route path="/tuition" element={<TuitionPage />} />
             <Route path="/assignments" element={<AssignmentsPage />} />
@@ -45,6 +50,7 @@ export default function App() {
             <Route path="/lecturer/announcements" element={<LecturerAnnouncementsPage />} />
             <Route path="/lecturer/grades" element={<LecturerGradesPage />} />
             <Route path="/lecturer/attendance" element={<LecturerAttendancePage />} />
+            <Route path="/lecturer/attendance-schedule" element={<LecturerAttendanceSchedulePage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

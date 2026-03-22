@@ -10,6 +10,8 @@ import {
   listLecturerAnnouncements,
   listAttendance,
   markAttendance,
+  overrideExamEligibility,
+  listAttendanceSchedule,
 } from "../controllers/lecturer.controller.js";
 import {
   sectionParamsSchema,
@@ -17,6 +19,7 @@ import {
   upsertGradeSchema,
   createLecturerAnnouncementSchema,
   markAttendanceSchema,
+  overrideExamEligibilitySchema,
 } from "../validators/lecturer.validator.js";
 import { validate } from "../middleware/validate.js";
 
@@ -39,3 +42,6 @@ lecturerRouter.post("/announcements", validate(createLecturerAnnouncementSchema)
 
 lecturerRouter.get("/attendance", listAttendance);
 lecturerRouter.post("/attendance", validate(markAttendanceSchema), markAttendance);
+lecturerRouter.get("/attendance/schedule", listAttendanceSchedule);
+
+lecturerRouter.post("/exam-eligibility/override", validate(overrideExamEligibilitySchema), overrideExamEligibility);

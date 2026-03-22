@@ -56,6 +56,10 @@ import {
   createRoom,
   updateRoom,
   listAssignments,
+  listMajors,
+  createMajor,
+  updateMajor,
+  deleteMajor,
 } from "../controllers/admin.controller.js";
 import {
   assignLecturerSchema,
@@ -78,6 +82,8 @@ import {
   updateSectionSchema,
   updateScheduleSchema,
   updateExamSchema,
+  createMajorSchema,
+  updateMajorSchema,
   updateLecturerSchema,
   updateStudentSchema,
   createSemesterSchema,
@@ -97,6 +103,11 @@ adminRouter.get("/departments", listDepartments);
 adminRouter.post("/departments", validate(createDepartmentSchema), createDepartment);
 adminRouter.put("/departments/:id", validate(updateDepartmentSchema), updateDepartment);
 adminRouter.delete("/departments/:id", deleteDepartment);
+
+adminRouter.get("/majors", listMajors);
+adminRouter.post("/majors", validate(createMajorSchema), createMajor);
+adminRouter.put("/majors/:id", validate(updateMajorSchema), updateMajor);
+adminRouter.delete("/majors/:id", deleteMajor);
 
 adminRouter.get("/class-groups", listClassGroups);
 adminRouter.post("/class-groups", validate(createClassGroupSchema), createClassGroup);

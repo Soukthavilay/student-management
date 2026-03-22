@@ -13,6 +13,8 @@ import {
   listAvailableSections,
   registerSection,
   dropSection,
+  getExamEligibility,
+  registerExam,
 } from "../controllers/student.controller.js";
 import {
   availableSectionsQuerySchema,
@@ -39,3 +41,5 @@ studentRouter.get("/attendance", listAttendance);
 studentRouter.get("/enrollments/available", validate(availableSectionsQuerySchema), listAvailableSections);
 studentRouter.post("/enrollments", validate(registerSectionSchema), registerSection);
 studentRouter.delete("/enrollments/:sectionId", validate(dropSectionSchema), dropSection);
+studentRouter.get("/exam-eligibility", getExamEligibility);
+studentRouter.post("/exams/register", registerExam);

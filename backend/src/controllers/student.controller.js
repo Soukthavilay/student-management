@@ -3,6 +3,8 @@ import { notFound } from "../utils/http-error.js";
 import { parsePagination, paginationMeta } from "../utils/pagination.js";
 import { createAuditLog } from "../services/audit.service.js";
 
+const ABSENCE_THRESHOLD = 0.2; // 20%
+
 async function getStudentOrThrow(userId) {
   const student = await prisma.student.findUnique({
     where: { userId },
@@ -13,6 +15,51 @@ async function getStudentOrThrow(userId) {
   }
 
   return student;
+}
+
+async function calculateAbsenceRate(studentId, sectionId) {
+  const attendances = await prisma.attendance.findMany({
+    where: {
+      studentId,
+      section: { id: sectionId },
+    },
+  });
+
+  if (attendances.length === 0) return 0;
+
+  const absenceCount = attendances.filter(a => a.status === "ABSENT").length;
+  return absenceCount / attendances.length;
+}
+
+async function checkExamEligibility(studentId, sectionId) {
+  const enrollment = await prisma.enrollment.findUnique({
+    where: {
+      sectionId_studentId: { sectionId, studentId },
+    },
+  });
+
+  if (!enrollment) return null;
+
+  // If manually overridden, return override value
+  if (enrollment.isEligibleForExam !== null) {
+    return enrollment.isEligibleForExam;
+  }
+
+  // Auto-calculate based on absence rate
+  const attendances = await prisma.attendance.findMany({
+    where: {
+      studentId,
+      section: { id: sectionId },
+    },
+  });
+
+  // If no attendance records yet, consider eligible (chưa điểm danh)
+  if (attendances.length === 0) {
+    return true;
+  }
+
+  const absenceRate = await calculateAbsenceRate(studentId, sectionId);
+  return absenceRate <= ABSENCE_THRESHOLD;
 }
 
 export async function getProfile(req, res, next) {
@@ -698,6 +745,153 @@ export async function dropSection(req, res, next) {
     });
 
     return res.json({ message: "Đã hủy đăng ký học phần" });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getExamEligibility(req, res, next) {
+  try {
+    const student = await getStudentOrThrow(req.user.id);
+    const { sectionId } = req.query;
+
+    if (!sectionId) {
+      return res.json({ data: [] });
+    }
+
+    const enrollment = await prisma.enrollment.findUnique({
+      where: {
+        sectionId_studentId: {
+          sectionId: Number(sectionId),
+          studentId: student.id,
+        },
+      },
+      include: {
+        section: {
+          include: {
+            subject: { select: { id: true, code: true, name: true } },
+          },
+        },
+      },
+    });
+
+    if (!enrollment) {
+      return res.json({ data: null, message: "Sinh viên chưa đăng ký học phần này" });
+    }
+
+    const absenceRate = await calculateAbsenceRate(student.id, Number(sectionId));
+    const isEligible = await checkExamEligibility(student.id, Number(sectionId));
+
+    return res.json({
+      data: {
+        enrollmentId: enrollment.id,
+        sectionCode: enrollment.section.code,
+        subjectName: enrollment.section.subject.name,
+        absenceRate: Number((absenceRate * 100).toFixed(1)),
+        absenceThreshold: Number((ABSENCE_THRESHOLD * 100).toFixed(1)),
+        isEligible,
+        isOverridden: enrollment.isEligibleForExam !== null,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function registerExam(req, res, next) {
+  try {
+    const student = await getStudentOrThrow(req.user.id);
+    const { examId } = req.body;
+
+    if (!examId) {
+      throw badRequest("examId is required");
+    }
+
+    const exam = await prisma.exam.findUnique({
+      where: { id: Number(examId) },
+      include: {
+        section: {
+          include: {
+            subject: true,
+          },
+        },
+      },
+    });
+
+    if (!exam) {
+      throw notFound("Kỳ thi không tồn tại");
+    }
+
+    // Check if student is enrolled in this section
+    const enrollment = await prisma.enrollment.findUnique({
+      where: {
+        sectionId_studentId: {
+          sectionId: exam.sectionId,
+          studentId: student.id,
+        },
+      },
+    });
+
+    if (!enrollment) {
+      throw forbidden("Bạn chưa đăng ký học phần này");
+    }
+
+    // Check exam eligibility
+    const isEligible = await checkExamEligibility(student.id, exam.sectionId);
+    if (!isEligible) {
+      const absenceRate = await calculateAbsenceRate(student.id, exam.sectionId);
+      throw forbidden(
+        `Bạn không đủ điều kiện dự thi. Tỉ lệ vắng: ${(absenceRate * 100).toFixed(1)}% (Ngưỡng: ${(ABSENCE_THRESHOLD * 100).toFixed(1)}%)`
+      );
+    }
+
+    // Check if already registered for this exam
+    const existingRegistration = await prisma.examRegistration.findFirst({
+      where: {
+        examId: Number(examId),
+        studentId: student.id,
+      },
+    });
+
+    if (existingRegistration) {
+      throw badRequest("Bạn đã đăng ký kỳ thi này rồi");
+    }
+
+    const registration = await prisma.examRegistration.create({
+      data: {
+        examId: Number(examId),
+        studentId: student.id,
+        registrationDate: new Date(),
+      },
+      include: {
+        exam: {
+          include: {
+            section: {
+              include: {
+                subject: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    await createAuditLog({
+      userId: req.user.id,
+      action: "REGISTER_EXAM",
+      entity: "ExamRegistration",
+      entityId: registration.id,
+      metadata: {
+        examId,
+        sectionId: exam.sectionId,
+        subjectName: exam.section.subject.name,
+      },
+    });
+
+    return res.status(201).json({
+      data: registration,
+      message: "Đăng ký thi thành công",
+    });
   } catch (error) {
     return next(error);
   }

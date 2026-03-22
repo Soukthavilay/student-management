@@ -58,12 +58,26 @@ function SemesterSection({ semester, curriculumSubjects, enrollments, colors, is
     };
   });
 
-  const enrolledCount = semesterItems.filter(item => item.enrollment).length;
-  const totalCredits = semesterItems
+  // Add general subjects from enrollments that are not in curriculum
+  const generalItems = enrollments
+    .filter(e => {
+      const isInCurriculum = curriculumSubjects.some(cs => cs.subject.id === e.section?.subject?.id);
+      const isInSemester = e.section?.semester?.name?.includes(semester.toString());
+      return !isInCurriculum && isInSemester;
+    })
+    .map(enrollment => ({
+      curriculumSubject: null,
+      enrollment: enrollment,
+    }));
+
+  const allItems = [...semesterItems, ...generalItems];
+
+  const enrolledCount = allItems.filter(item => item.enrollment).length;
+  const totalCredits = allItems
     .filter(item => item.enrollment)
     .reduce((sum, item) => sum + (item.enrollment.section?.subject?.credits || 0), 0);
 
-  const gradedItems = semesterItems.filter(item => item.enrollment?.grade?.gpaPoint != null);
+  const gradedItems = allItems.filter(item => item.enrollment?.grade?.gpaPoint != null);
   const semesterGPA = gradedItems.length > 0
     ? (gradedItems.reduce((sum, item) => sum + item.enrollment.grade.gpaPoint * (item.enrollment.section?.subject?.credits || 0), 0) /
        gradedItems.reduce((sum, item) => sum + (item.enrollment.section?.subject?.credits || 0), 0))
@@ -80,7 +94,7 @@ function SemesterSection({ semester, curriculumSubjects, enrollments, colors, is
             Học kỳ {semester}
           </Text>
           <Text style={[styles.semesterSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
-            {enrolledCount}/{curriculumSubjects.length} môn • {totalCredits} tín chỉ
+            {enrolledCount}/{allItems.length} môn • {totalCredits} tín chỉ
           </Text>
         </View>
         <View style={styles.semesterHeaderRight}>
@@ -102,22 +116,26 @@ function SemesterSection({ semester, curriculumSubjects, enrollments, colors, is
 
       {expanded && (
         <View style={styles.semesterContent}>
-          {semesterItems.map(({ curriculumSubject, enrollment }) => {
+          {allItems.map(({ curriculumSubject, enrollment }) => {
             const hasGrade = enrollment?.grade?.finalScore != null;
             const statusText = getStatusText(null, enrollment);
             const statusColor = getStatusColor(null, enrollment, colors);
+            const subjectName = curriculumSubject?.subject?.name || enrollment?.section?.subject?.name;
+            const subjectCode = curriculumSubject?.subject?.code || enrollment?.section?.subject?.code;
+            const credits = curriculumSubject?.subject?.credits || enrollment?.section?.subject?.credits;
+            const itemKey = curriculumSubject?.subject?.id || enrollment?.id;
 
             return (
               <View
-                key={curriculumSubject.subject.id}
+                key={itemKey}
                 style={[styles.subjectRow, { borderBottomColor: colors.border }]}
               >
                 <View style={styles.subjectInfo}>
                   <Text style={[styles.subjectName, { color: colors.text }]} numberOfLines={1}>
-                    {curriculumSubject.subject.name}
+                    {subjectName}
                   </Text>
                   <Text style={[styles.subjectCode, { color: colors.textSecondary }]}>
-                    {curriculumSubject.subject.code} • {curriculumSubject.subject.credits} TC
+                    {subjectCode} • {credits} TC
                     {enrollment ? ` • ${enrollment.section?.code}` : ''}
                   </Text>
                 </View>
@@ -151,69 +169,6 @@ function SemesterSection({ semester, curriculumSubjects, enrollments, colors, is
   );
 }
 
-function ExtraCoursesSection({ enrollments, colors, isDark }) {
-  if (enrollments.length === 0) return null;
-
-  return (
-    <View style={[styles.semesterContainer, { backgroundColor: colors.card, shadowColor: colors.cardShadow }]}>
-      <View style={[styles.semesterHeader, { backgroundColor: isDark ? '#3D3D1F' : '#FEFCE8' }]}>
-        <View style={styles.semesterHeaderLeft}>
-          <Text style={[styles.semesterTitle, { color: isDark ? '#FEF08A' : '#854D0E' }]}>
-            Môn học ngoài chương trình
-          </Text>
-          <Text style={[styles.semesterSubtitle, { color: isDark ? '#FDE047' : '#A16207' }]}>
-            {enrollments.length} môn học
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.semesterContent}>
-        {enrollments.map((enrollment) => {
-          const grade = enrollment.grade;
-          const hasGrade = grade && grade.finalScore != null;
-
-          return (
-            <View
-              key={enrollment.id}
-              style={[styles.subjectRow, { borderBottomColor: colors.border }]}
-            >
-              <View style={styles.subjectInfo}>
-                <Text style={[styles.subjectName, { color: colors.text }]} numberOfLines={1}>
-                  {enrollment.section?.subject?.name}
-                </Text>
-                <Text style={[styles.subjectCode, { color: colors.textSecondary }]}>
-                  {enrollment.section?.subject?.code} • {enrollment.section?.subject?.credits} TC
-                  {' • '}{enrollment.section?.semester} / {enrollment.section?.academicYear}
-                </Text>
-              </View>
-
-              <View style={styles.gradeInfo}>
-                {hasGrade ? (
-                  <>
-                    <View style={[styles.letterBadge, { backgroundColor: getGradeColor(grade.gpaPoint, colors) + '20' }]}>
-                      <Text style={[styles.letterText, { color: getGradeColor(grade.gpaPoint, colors) }]}>
-                        {getLetterGrade(grade.gpaPoint)}
-                      </Text>
-                    </View>
-                    <Text style={[styles.scoreText, { color: colors.text }]}>
-                      {grade.finalScore.toFixed(1)}
-                    </Text>
-                  </>
-                ) : (
-                  <View style={[styles.statusBadge, { backgroundColor: (colors.info || colors.primary) + '15' }]}>
-                    <Text style={[styles.statusBadgeText, { color: colors.info || colors.primary }]}>
-                      Đang học
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
 
 export default function GradesScreen() {
   const { isDark } = useAuth();
@@ -257,12 +212,6 @@ export default function GradesScreen() {
 
   const { cumulativeGpa, grades, curriculum } = gradesData;
 
-  // Find extra enrollments not in curriculum
-  const extraEnrollments = grades.filter(e => {
-    if (!curriculum) return true;
-    return !curriculum.subjects.some(cs => cs.subject.id === e.section?.subject?.id);
-  });
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
@@ -299,10 +248,19 @@ export default function GradesScreen() {
           </View>
         ) : (
           <>
-            {/* Curriculum semesters */}
+            {/* Curriculum semesters with extra courses merged by semester */}
             {Array.from({ length: curriculum.totalSemesters }, (_, i) => i + 1).map((semester) => {
               const semesterSubjects = curriculum.subjects.filter(cs => cs.semester === semester);
-              if (semesterSubjects.length === 0) return null;
+              
+              // Find extra enrollments for this semester
+              const semesterExtraEnrollments = grades.filter(e => {
+                const isInCurriculum = curriculum.subjects.some(cs => cs.subject.id === e.section?.subject?.id);
+                const isInSemester = e.section?.semester?.id && 
+                  curriculum.subjects.some(cs => cs.semester === semester);
+                return !isInCurriculum && e.section?.semester?.name?.includes(semester.toString());
+              });
+
+              if (semesterSubjects.length === 0 && semesterExtraEnrollments.length === 0) return null;
 
               return (
                 <SemesterSection
@@ -315,13 +273,6 @@ export default function GradesScreen() {
                 />
               );
             })}
-
-            {/* Extra courses */}
-            <ExtraCoursesSection
-              enrollments={extraEnrollments}
-              colors={colors}
-              isDark={isDark}
-            />
           </>
         )}
       </ScrollView>

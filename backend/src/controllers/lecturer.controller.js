@@ -501,22 +501,22 @@ export async function markAttendance(req, res, next) {
       attendanceData.map((ad) =>
         prisma.attendance.upsert({
           where: {
-            studentId_sectionId_date: {
-              studentId: ad.studentId,
+            sectionId_studentId_date: {
               sectionId: Number(sectionId),
+              studentId: ad.studentId,
               date: new Date(date),
             },
           },
           update: {
             status: ad.status,
-            remark: ad.remark,
+            note: ad.remark,
           },
           create: {
             studentId: ad.studentId,
             sectionId: Number(sectionId),
             date: new Date(date),
             status: ad.status,
-            remark: ad.remark,
+            note: ad.remark,
           },
         })
       )
@@ -531,6 +531,174 @@ export async function markAttendance(req, res, next) {
     });
 
     return res.json({ data: results });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function overrideExamEligibility(req, res, next) {
+  try {
+    const lecturer = await getLecturerOrThrow(req.user.id);
+    const { studentId, sectionId, isEligible } = req.body;
+
+    if (!studentId || !sectionId || isEligible === undefined) {
+      throw badRequest("studentId, sectionId, and isEligible are required");
+    }
+
+    // Verify lecturer teaches this section
+    const section = await prisma.section.findUnique({
+      where: { id: Number(sectionId) },
+      include: {
+        teachingAssignments: {
+          where: { lecturerId: lecturer.id },
+        },
+      },
+    });
+
+    if (!section || section.teachingAssignments.length === 0) {
+      throw forbidden("Bạn không dạy lớp học phần này");
+    }
+
+    const enrollment = await prisma.enrollment.update({
+      where: {
+        sectionId_studentId: {
+          sectionId: Number(sectionId),
+          studentId: Number(studentId),
+        },
+      },
+      data: {
+        isEligibleForExam: isEligible,
+      },
+      include: {
+        section: { include: { subject: true } },
+        student: { include: { user: { select: { fullName: true } } } },
+      },
+    });
+
+    await createAuditLog({
+      userId: req.user.id,
+      action: "OVERRIDE_EXAM_ELIGIBILITY",
+      entity: "Enrollment",
+      entityId: enrollment.id,
+      metadata: {
+        studentId,
+        sectionId,
+        isEligible,
+        studentName: enrollment.student.user.fullName,
+        subjectName: enrollment.section.subject.name,
+      },
+    });
+
+    return res.json({
+      data: enrollment,
+      message: `Cập nhật điều kiện dự thi cho sinh viên ${enrollment.student.user.fullName}`,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function listAttendanceSchedule(req, res, next) {
+  try {
+    const lecturer = await getLecturerOrThrow(req.user.id);
+    const { sectionId } = req.query;
+
+    if (!sectionId) {
+      throw badRequest("sectionId is required");
+    }
+
+    // Verify lecturer teaches this section
+    const section = await prisma.section.findUnique({
+      where: { id: Number(sectionId) },
+      include: {
+        teachingAssignments: {
+          where: { lecturerId: lecturer.id },
+        },
+        schedules: {
+          orderBy: { dayOfWeek: "asc" },
+          include: { room: { select: { name: true } } },
+        },
+        semester: true,
+        subject: true,
+      },
+    });
+
+    if (!section || section.teachingAssignments.length === 0) {
+      throw forbidden("Bạn không dạy lớp học phần này");
+    }
+
+    // Get all attendance records for this section
+    const attendances = await prisma.attendance.findMany({
+      where: {
+        sectionId: Number(sectionId),
+      },
+      include: {
+        student: {
+          include: {
+            user: { select: { fullName: true } },
+          },
+        },
+      },
+      orderBy: { date: "asc" },
+    });
+
+    // Group attendance by date
+    const attendanceByDate = {};
+    attendances.forEach((att) => {
+      const dateStr = att.date.toISOString().split("T")[0];
+      if (!attendanceByDate[dateStr]) {
+        attendanceByDate[dateStr] = [];
+      }
+      attendanceByDate[dateStr].push({
+        studentId: att.studentId,
+        studentName: att.student.user.fullName,
+        status: att.status,
+        note: att.note,
+      });
+    });
+
+    // Get all students enrolled in this section
+    const enrollments = await prisma.enrollment.findMany({
+      where: {
+        sectionId: Number(sectionId),
+      },
+      include: {
+        student: {
+          include: {
+            user: { select: { fullName: true } },
+          },
+        },
+      },
+      orderBy: {
+        student: {
+          user: { fullName: "asc" },
+        },
+      },
+    });
+
+    return res.json({
+      data: {
+        section: {
+          id: section.id,
+          code: section.code,
+          subjectName: section.subject.name,
+          semesterName: section.semester.name,
+          schedules: section.schedules.map((sch) => ({
+            dayOfWeek: sch.dayOfWeek,
+            shift: sch.shift,
+            room: sch.room?.name || "N/A",
+          })),
+        },
+        attendanceByDate: Object.entries(attendanceByDate).map(([date, records]) => ({
+          date,
+          records,
+        })),
+        students: enrollments.map((e) => ({
+          studentId: e.studentId,
+          studentName: e.student.user.fullName,
+        })),
+      },
+    });
   } catch (error) {
     return next(error);
   }

@@ -15,6 +15,7 @@ const schema = z.object({
   fullName: z.string().min(2),
   studentCode: z.string().min(2),
   departmentId: z.coerce.number().int().positive(),
+  majorId: z.coerce.number().int().positive(),
   classGroupId: z.coerce.number().int().positive(),
   phone: z.string().optional(),
   address: z.string().optional(),
@@ -50,6 +51,14 @@ export default function StudentsPage() {
     queryKey: ["departments"],
     queryFn: async () => {
       const response = await api.admin.departments();
+      return response.data.data || [];
+    },
+  });
+
+  const majorsQuery = useQuery({
+    queryKey: ["majors", selectedDepartmentId],
+    queryFn: async () => {
+      const response = await api.admin.majors(selectedDepartmentId || undefined);
       return response.data.data || [];
     },
   });
@@ -130,6 +139,14 @@ export default function StudentsPage() {
                 <option value="">Chọn khoa</option>
                 {(departmentsQuery.data || []).map((d) => (
                   <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </FormField>
+            <FormField label="Ngành" error={errors.majorId?.message}>
+              <select className="rounded border border-slate-300 px-3 py-2" {...register("majorId")}>
+                <option value="">Chọn ngành</option>
+                {(majorsQuery.data || []).map((m) => (
+                  <option key={m.id} value={m.id}>{m.code} - {m.name}</option>
                 ))}
               </select>
             </FormField>

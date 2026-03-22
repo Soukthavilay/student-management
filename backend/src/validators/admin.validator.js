@@ -24,6 +24,26 @@ export const updateDepartmentSchema = z.object({
   }),
 });
 
+export const createMajorSchema = z.object({
+  ...baseEnvelope,
+  body: z.object({
+    code: z.string().min(2, "Mã ngành phải có ít nhất 2 ký tự"),
+    name: z.string().min(2, "Tên ngành phải có ít nhất 2 ký tự"),
+    departmentId: z.coerce.number().int().positive("Khoa không hợp lệ"),
+  }),
+});
+
+export const updateMajorSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int().positive(),
+  }),
+  query: z.object({}).passthrough(),
+  body: z.object({
+    code: z.string().min(2).optional(),
+    name: z.string().min(2).optional(),
+  }),
+});
+
 export const createStudentSchema = z.object({
   ...baseEnvelope,
   body: z.object({
@@ -32,6 +52,7 @@ export const createStudentSchema = z.object({
     fullName: z.string().min(2),
     studentCode: z.string().min(2),
     departmentId: z.coerce.number().int().positive(),
+    majorId: z.coerce.number().int().positive(),
     classGroupId: z.coerce.number().int().positive(),
     phone: z.string().min(8).max(20).optional().nullable(),
     address: z.string().min(3).max(255).optional().nullable(),
@@ -47,6 +68,7 @@ export const updateStudentSchema = z.object({
   body: z.object({
     fullName: z.string().min(2).optional(),
     departmentId: z.coerce.number().int().positive().optional(),
+    majorId: z.coerce.number().int().positive().optional(),
     classGroupId: z.coerce.number().int().positive().optional(),
     phone: z.string().min(8).max(20).optional().nullable(),
     address: z.string().min(3).max(255).optional().nullable(),
@@ -107,6 +129,7 @@ export const createClassGroupSchema = z.object({
     code: z.string().min(2),
     name: z.string().min(2),
     departmentId: z.coerce.number().int().positive(),
+    majorId: z.coerce.number().int().positive(),
   }),
 });
 
@@ -119,6 +142,7 @@ export const updateClassGroupSchema = z.object({
     code: z.string().min(2).optional(),
     name: z.string().min(2).optional(),
     departmentId: z.coerce.number().int().positive().optional(),
+    majorId: z.coerce.number().int().positive().optional(),
   }),
 });
 
@@ -154,7 +178,7 @@ export const createRoomSchema = z.object({
   body: z.object({
     name: z.string().min(1),
     capacity: z.coerce.number().int().positive(),
-    type: z.enum(["LECTURE_HALL", "CLASSROOM", "LABORATORY", "COMPUTER_ROOM", "OFFICE"]).default("CLASSROOM"),
+    type: z.enum(["THEORY", "LAB"]).default("THEORY"),
   }),
 });
 
@@ -166,7 +190,7 @@ export const updateRoomSchema = z.object({
   body: z.object({
     name: z.string().min(1).optional(),
     capacity: z.coerce.number().int().positive().optional(),
-    type: z.enum(["LECTURE_HALL", "CLASSROOM", "LABORATORY", "COMPUTER_ROOM", "OFFICE"]).optional(),
+    type: z.enum(["THEORY", "LAB"]).optional(),
   }),
 });
 

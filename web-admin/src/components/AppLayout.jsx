@@ -7,6 +7,8 @@ const adminLinks = [
   { to: "/students", label: "Sinh viên" },
   { to: "/lecturers", label: "Giảng viên" },
   { to: "/academics", label: "Đào tạo" },
+  { to: "/majors", label: "Ngành học" },
+  { to: "/class-groups", label: "Lớp học" },
   { to: "/curriculum", label: "Chương trình ĐT" },
   { to: "/tuition", label: "Học phí" },
   { to: "/assignments", label: "Phân công" },
@@ -20,6 +22,7 @@ const lecturerLinks = [
   { to: "/lecturer/announcements", label: "Thông báo" },
   { to: "/lecturer/grades", label: "Nhập điểm" },
   { to: "/lecturer/attendance", label: "Điểm danh" },
+  { to: "/lecturer/attendance-schedule", label: "Lịch điểm danh" },
 ];
 
 export default function AppLayout() {

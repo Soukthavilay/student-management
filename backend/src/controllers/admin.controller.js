@@ -216,11 +216,23 @@ export async function listSubjects(req, res, next) {
 
 export async function createClassGroup(req, res, next) {
   try {
+    const { code, name, departmentId, majorId } = req.body;
+
+    const major = await prisma.major.findUnique({ where: { id: majorId } });
+    if (!major) {
+      throw badRequest("Ngành không tồn tại");
+    }
+
     const created = await prisma.classGroup.create({
       data: {
-        code: req.body.code,
-        name: req.body.name,
-        departmentId: req.body.departmentId,
+        code,
+        name,
+        departmentId,
+        majorId,
+      },
+      include: {
+        department: { select: { id: true, code: true, name: true } },
+        major: { select: { id: true, code: true, name: true } },
       },
     });
 
@@ -229,6 +241,7 @@ export async function createClassGroup(req, res, next) {
       action: "CREATE_CLASS_GROUP",
       entity: "ClassGroup",
       entityId: created.id,
+      metadata: { code, name, departmentId, majorId },
     });
 
     return res.status(201).json({ data: created });
@@ -240,7 +253,7 @@ export async function createClassGroup(req, res, next) {
 export async function updateClassGroup(req, res, next) {
   try {
     const { id } = req.params;
-    const { code, name, departmentId } = req.body;
+    const { code, name, departmentId, majorId } = req.body;
 
     const classGroup = await prisma.classGroup.findUnique({
       where: { id: Number(id) },
@@ -254,13 +267,31 @@ export async function updateClassGroup(req, res, next) {
       if (existingCode) throw badRequest("Mã lớp sinh hoạt đã tồn tại");
     }
 
+    if (majorId) {
+      const major = await prisma.major.findUnique({ where: { id: majorId } });
+      if (!major) throw badRequest("Ngành không tồn tại");
+    }
+
     const updated = await prisma.classGroup.update({
       where: { id: Number(id) },
       data: {
         ...(code && { code }),
         ...(name && { name }),
         ...(departmentId && { departmentId }),
+        ...(majorId && { majorId }),
       },
+      include: {
+        department: { select: { id: true, code: true, name: true } },
+        major: { select: { id: true, code: true, name: true } },
+      },
+    });
+
+    await createAuditLog({
+      userId: req.user.id,
+      action: "UPDATE_CLASS_GROUP",
+      entity: "ClassGroup",
+      entityId: updated.id,
+      metadata: { code, name, departmentId, majorId },
     });
 
     return res.json({ data: updated });
@@ -799,6 +830,7 @@ export async function createStudent(req, res, next) {
       fullName,
       studentCode,
       departmentId,
+      majorId,
       classGroupId,
       phone,
       address,
@@ -806,6 +838,13 @@ export async function createStudent(req, res, next) {
     } = req.body;
 
     const passwordHash = await bcrypt.hash(password, 10);
+
+    const classGroup = await prisma.classGroup.findUnique({
+      where: { id: classGroupId },
+    });
+    if (!classGroup) {
+      throw badRequest("Lớp học không tồn tại");
+    }
 
     const created = await prisma.user.create({
       data: {
@@ -817,6 +856,7 @@ export async function createStudent(req, res, next) {
           create: {
             studentCode,
             departmentId,
+            majorId,
             classGroupId,
             phone: phone ?? null,
             address: address ?? null,
@@ -825,7 +865,13 @@ export async function createStudent(req, res, next) {
         },
       },
       include: {
-        student: true,
+        student: {
+          include: {
+            department: { select: { id: true, code: true, name: true } },
+            major: { select: { id: true, code: true, name: true } },
+            classGroup: { select: { id: true, code: true, name: true } },
+          },
+        },
       },
     });
 
@@ -1834,6 +1880,132 @@ export async function deleteTuitionConfig(req, res, next) {
     const { id } = req.params;
     await prisma.tuitionConfig.delete({ where: { id: Number(id) } });
     return res.json({ message: "Đã xoá cấu hình giá tín chỉ" });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function listMajors(req, res, next) {
+  try {
+    const departmentId = req.query.departmentId ? Number(req.query.departmentId) : null;
+    
+    const majors = await prisma.major.findMany({
+      where: departmentId ? { departmentId } : undefined,
+      include: {
+        department: { select: { id: true, code: true, name: true } },
+        classGroups: { select: { id: true, code: true, name: true } },
+      },
+      orderBy: { name: "asc" },
+    });
+
+    return res.json({ data: majors });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function createMajor(req, res, next) {
+  try {
+    const { code, name, departmentId } = req.body;
+
+    const existingCode = await prisma.major.findUnique({ where: { code } });
+    if (existingCode) {
+      throw badRequest("Mã ngành đã tồn tại");
+    }
+
+    const department = await prisma.department.findUnique({ where: { id: departmentId } });
+    if (!department) {
+      throw notFound("Khoa không tồn tại");
+    }
+
+    const created = await prisma.major.create({
+      data: { code, name, departmentId },
+      include: {
+        department: { select: { id: true, code: true, name: true } },
+      },
+    });
+
+    await createAuditLog({
+      userId: req.user.id,
+      action: "CREATE_MAJOR",
+      entity: "Major",
+      entityId: created.id,
+      metadata: { code, name, departmentId },
+    });
+
+    return res.status(201).json({ data: created });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateMajor(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { code, name } = req.body;
+
+    const major = await prisma.major.findUnique({ where: { id: Number(id) } });
+    if (!major) {
+      throw notFound("Ngành không tồn tại");
+    }
+
+    if (code && code !== major.code) {
+      const existingCode = await prisma.major.findUnique({ where: { code } });
+      if (existingCode) {
+        throw badRequest("Mã ngành đã tồn tại");
+      }
+    }
+
+    const updated = await prisma.major.update({
+      where: { id: Number(id) },
+      data: { code, name },
+      include: {
+        department: { select: { id: true, code: true, name: true } },
+      },
+    });
+
+    await createAuditLog({
+      userId: req.user.id,
+      action: "UPDATE_MAJOR",
+      entity: "Major",
+      entityId: updated.id,
+      metadata: { code, name },
+    });
+
+    return res.json({ data: updated });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteMajor(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const major = await prisma.major.findUnique({
+      where: { id: Number(id) },
+      include: { classGroups: { select: { id: true } } },
+    });
+
+    if (!major) {
+      throw notFound("Ngành không tồn tại");
+    }
+
+    if (major.classGroups.length > 0) {
+      throw badRequest("Không thể xoá ngành có lớp học");
+    }
+
+    await prisma.major.delete({ where: { id: Number(id) } });
+
+    await createAuditLog({
+      userId: req.user.id,
+      action: "DELETE_MAJOR",
+      entity: "Major",
+      entityId: Number(id),
+      metadata: { majorId: Number(id) },
+    });
+
+    return res.json({ message: "Đã xoá ngành" });
   } catch (error) {
     return next(error);
   }

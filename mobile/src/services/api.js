@@ -21,6 +21,9 @@ export const api = {
       http.get('/student/enrollments/available', { params }),
     registerSection: (payload) => http.post('/student/enrollments', payload),
     dropSection: (sectionId) => http.delete(`/student/enrollments/${sectionId}`),
+    getExamEligibility: (params) =>
+      http.get('/student/exam-eligibility', { params }),
+    registerExam: (payload) => http.post('/student/exams/register', payload),
   },
   notifications: {
     registerDevice: (payload) =>

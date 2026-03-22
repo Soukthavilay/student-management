@@ -59,3 +59,13 @@ export const markAttendanceSchema = z.object({
     ).min(1),
   }),
 });
+
+export const overrideExamEligibilitySchema = z.object({
+  params: z.object({}).passthrough(),
+  query: z.object({}).passthrough(),
+  body: z.object({
+    studentId: z.coerce.number().int().positive(),
+    sectionId: z.coerce.number().int().positive(),
+    isEligible: z.boolean(),
+  }),
+});

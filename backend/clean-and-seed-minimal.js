@@ -60,31 +60,76 @@ async function main() {
     });
     console.log(`   ✓ Created semester: ${semester.name} ${semester.academicYear}`);
 
-    // 3. Create Department
-    console.log("🏢 Creating department...");
-    const dept = await prisma.department.create({
-      data: {
-        code: "CNTT",
-        name: "Khoa Công nghệ Thông tin",
-      },
-    });
-    console.log(`   ✓ Created department: ${dept.name}`);
+    // 3. Create Departments
+    console.log("🏢 Creating departments...");
+    const depts = await Promise.all([
+      prisma.department.create({
+        data: {
+          code: "CNTT",
+          name: "Khoa Công nghệ Thông tin",
+        },
+      }),
+      prisma.department.create({
+        data: {
+          code: "KTDT",
+          name: "Khoa Kỹ thuật Điện",
+        },
+      }),
+    ]);
+    const dept = depts[0];
+    const deptElectrical = depts[1];
+    console.log(`   ✓ Created ${depts.length} departments`);
 
-    // 4. Create Class Group
-    console.log("👥 Creating class group...");
-    const classGroup = await prisma.classGroup.create({
-      data: {
-        code: "CNTT-K20",
-        name: "Lớp CNTT K20",
-        departmentId: dept.id,
-      },
-    });
-    console.log(`   ✓ Created class: ${classGroup.name}`);
+    // 4. Create Majors
+    console.log("🎓 Creating majors...");
+    const majors = await Promise.all([
+      prisma.major.create({
+        data: {
+          code: "CNTT-SE",
+          name: "Ngành Kỹ sư Phần mềm",
+          departmentId: dept.id,
+        },
+      }),
+      prisma.major.create({
+        data: {
+          code: "KTDT-AC",
+          name: "Kỹ thuật điện AC",
+          departmentId: deptElectrical.id,
+        },
+      }),
+    ]);
+    const major = majors[0];
+    const majorElectrical = majors[1];
+    console.log(`   ✓ Created ${majors.length} majors`);
 
-    // 5. Create Subjects (3 department + 3 general)
+    // 5. Create Class Groups
+    console.log("👥 Creating class groups...");
+    const classGroups = await Promise.all([
+      prisma.classGroup.create({
+        data: {
+          code: "CNTT-K20",
+          name: "Lớp CNTT K20",
+          departmentId: dept.id,
+          majorId: major.id,
+        },
+      }),
+      prisma.classGroup.create({
+        data: {
+          code: "KTDT-AC-1",
+          name: "Kỹ thuật điện AC 1",
+          departmentId: deptElectrical.id,
+          majorId: majorElectrical.id,
+        },
+      }),
+    ]);
+    const classGroup = classGroups[0];
+    const classGroupElectrical = classGroups[1];
+    console.log(`   ✓ Created ${classGroups.length} class groups`);
+
+    // 6. Create Subjects (6 department + 3 general)
     console.log("📚 Creating subjects...");
     const subjects = await Promise.all([
-      // Department subjects (CNTT khoa)
+      // CNTT department subjects
       prisma.subject.create({
         data: {
           code: "JAVA101",
@@ -110,6 +155,34 @@ async function main() {
           credits: 3,
           type: "DEPARTMENT",
           departmentId: dept.id,
+        },
+      }),
+      // KTDT department subjects
+      prisma.subject.create({
+        data: {
+          code: "DIEN-AC",
+          name: "Điện AC",
+          credits: 3,
+          type: "DEPARTMENT",
+          departmentId: deptElectrical.id,
+        },
+      }),
+      prisma.subject.create({
+        data: {
+          code: "DIEN-DC",
+          name: "Điện DC",
+          credits: 3,
+          type: "DEPARTMENT",
+          departmentId: deptElectrical.id,
+        },
+      }),
+      prisma.subject.create({
+        data: {
+          code: "DIEN-NANG",
+          name: "Điện năng",
+          credits: 3,
+          type: "DEPARTMENT",
+          departmentId: deptElectrical.id,
         },
       }),
       // General subjects (all students)
@@ -141,24 +214,41 @@ async function main() {
         },
       }),
     ]);
-    console.log(`   ✓ Created ${subjects.length} subjects (3 department + 3 general)`);
+    console.log(`   ✓ Created ${subjects.length} subjects (6 department + 3 general)`);
 
-    // 6. Create Curriculum
-    console.log("🎓 Creating curriculum...");
-    const curriculum = await prisma.curriculum.create({
-      data: {
-        name: "Chương trình CNTT",
-        departmentId: dept.id,
-        totalSemesters: 8,
-        subjects: {
-          create: subjects.map((s) => ({
-            subjectId: s.id,
-            semester: 1,
-          })),
+    // 7. Create Curriculums
+    console.log("🎓 Creating curriculums...");
+    const curriculums = await Promise.all([
+      prisma.curriculum.create({
+        data: {
+          name: "Chương trình CNTT",
+          departmentId: dept.id,
+          totalSemesters: 8,
+          subjects: {
+            create: subjects.slice(0, 3).map((s) => ({
+              subjectId: s.id,
+              semester: 1,
+            })),
+          },
         },
-      },
-    });
-    console.log(`   ✓ Created curriculum: ${curriculum.name}`);
+      }),
+      prisma.curriculum.create({
+        data: {
+          name: "Chương trình KTDT",
+          departmentId: deptElectrical.id,
+          totalSemesters: 8,
+          subjects: {
+            create: subjects.slice(3, 6).map((s) => ({
+              subjectId: s.id,
+              semester: 1,
+            })),
+          },
+        },
+      }),
+    ]);
+    const curriculum = curriculums[0];
+    const curriculumElectrical = curriculums[1];
+    console.log(`   ✓ Created ${curriculums.length} curriculums`);
 
     // 7. Create Admin User
     console.log("👨‍💼 Creating admin user...");
@@ -173,52 +263,96 @@ async function main() {
     });
     console.log(`   ✓ Created admin: ${adminUser.email}`);
 
-    // 8. Create Lecturer User
-    console.log("👨‍🏫 Creating lecturer user...");
-    const lecturerUser = await prisma.user.create({
-      data: {
-        email: "lecturer@university.edu",
-        fullName: "Lecturer User",
-        role: Role.LECTURER,
-        passwordHash: await bcrypt.hash("Lecturer@123", 10),
-        lecturer: {
-          create: {
-            lecturerCode: "GV001",
-            departmentId: dept.id,
+    // 8. Create Lecturer Users
+    console.log("👨‍🏫 Creating lecturer users...");
+    const lecturerUsers = await Promise.all([
+      prisma.user.create({
+        data: {
+          email: "lecturer@university.edu",
+          fullName: "Lecturer User",
+          role: Role.LECTURER,
+          passwordHash: await bcrypt.hash("Lecturer@123", 10),
+          lecturer: {
+            create: {
+              lecturerCode: "GV001",
+              departmentId: dept.id,
+            },
           },
         },
-      },
-    });
-    console.log(`   ✓ Created lecturer: ${lecturerUser.email}`);
-
-    // 9. Create Student User
-    console.log("🎓 Creating student user...");
-    const studentUser = await prisma.user.create({
-      data: {
-        email: "student@university.edu",
-        fullName: "Student User",
-        role: Role.STUDENT,
-        passwordHash: await bcrypt.hash("Student@123", 10),
-        student: {
-          create: {
-            studentCode: "SV001",
-            departmentId: dept.id,
-            classGroupId: classGroup.id,
+      }),
+      prisma.user.create({
+        data: {
+          email: "lecturer2@university.edu",
+          fullName: "Lecturer 2",
+          role: Role.LECTURER,
+          passwordHash: await bcrypt.hash("Lecturer@123", 10),
+          lecturer: {
+            create: {
+              lecturerCode: "GV002",
+              departmentId: deptElectrical.id,
+            },
           },
         },
-      },
-    });
-    console.log(`   ✓ Created student: ${studentUser.email}`);
+      }),
+    ]);
+    const lecturerUser = lecturerUsers[0];
+    const lecturerUser2 = lecturerUsers[1];
+    console.log(`   ✓ Created ${lecturerUsers.length} lecturers`);
 
-    // Get lecturer ID
+    // 9. Create Student Users
+    console.log("🎓 Creating student users...");
+    const studentUsers = await Promise.all([
+      prisma.user.create({
+        data: {
+          email: "student@university.edu",
+          fullName: "Student User",
+          role: Role.STUDENT,
+          passwordHash: await bcrypt.hash("Student@123", 10),
+          student: {
+            create: {
+              studentCode: "SV001",
+              departmentId: dept.id,
+              majorId: major.id,
+              classGroupId: classGroup.id,
+              curriculumId: curriculums[0].id,
+            },
+          },
+        },
+      }),
+      prisma.user.create({
+        data: {
+          email: "soukthavilay@university.edu",
+          fullName: "Bouphaphan Soukthavilay",
+          role: Role.STUDENT,
+          passwordHash: await bcrypt.hash("Student@123", 10),
+          student: {
+            create: {
+              studentCode: "SV002",
+              departmentId: deptElectrical.id,
+              majorId: majorElectrical.id,
+              classGroupId: classGroupElectrical.id,
+              curriculumId: curriculumElectrical.id,
+            },
+          },
+        },
+      }),
+    ]);
+    const studentUser = studentUsers[0];
+    const studentUser2 = studentUsers[1];
+    console.log(`   ✓ Created ${studentUsers.length} students`);
+
+    // Get lecturer IDs
     const lecturer = await prisma.lecturer.findUnique({
       where: { userId: lecturerUser.id },
     });
+    const lecturer2 = await prisma.lecturer.findUnique({
+      where: { userId: lecturerUser2.id },
+    });
 
-    // 10. Create Sections (6 sections: 3 department × 2 lecturers, 3 general × 1 lecturer)
+    // 10. Create Sections (9 sections: 6 department + 3 general)
     console.log("📖 Creating sections...");
     const sections = await Promise.all([
-      // Department subjects - 2 sections each
+      // CNTT department subjects - 2 sections each
       prisma.section.create({
         data: {
           code: "JAVA101-01",
@@ -273,11 +407,39 @@ async function main() {
           capacity: 30,
         },
       }),
+      // KTDT department subjects - 1 section each
+      prisma.section.create({
+        data: {
+          code: "DIEN-AC-01",
+          subjectId: subjects[3].id,
+          semesterId: semester.id,
+          classGroupId: classGroupElectrical.id,
+          capacity: 30,
+        },
+      }),
+      prisma.section.create({
+        data: {
+          code: "DIEN-DC-01",
+          subjectId: subjects[4].id,
+          semesterId: semester.id,
+          classGroupId: classGroupElectrical.id,
+          capacity: 30,
+        },
+      }),
+      prisma.section.create({
+        data: {
+          code: "DIEN-NANG-01",
+          subjectId: subjects[5].id,
+          semesterId: semester.id,
+          classGroupId: classGroupElectrical.id,
+          capacity: 30,
+        },
+      }),
       // General subjects - 1 section each
       prisma.section.create({
         data: {
           code: "PHIL101-01",
-          subjectId: subjects[3].id,
+          subjectId: subjects[6].id,
           semesterId: semester.id,
           classGroupId: null,
           capacity: 50,
@@ -286,7 +448,7 @@ async function main() {
       prisma.section.create({
         data: {
           code: "LAW101-01",
-          subjectId: subjects[4].id,
+          subjectId: subjects[7].id,
           semesterId: semester.id,
           classGroupId: null,
           capacity: 50,
@@ -295,28 +457,47 @@ async function main() {
       prisma.section.create({
         data: {
           code: "HIST101-01",
-          subjectId: subjects[5].id,
+          subjectId: subjects[8].id,
           semesterId: semester.id,
           classGroupId: null,
           capacity: 50,
         },
       }),
     ]);
-    console.log(`   ✓ Created ${sections.length} sections (6 department + 3 general)`);
+    console.log(`   ✓ Created ${sections.length} sections (9 department + 3 general)`);
 
-    // 11. Assign Lecturer to Sections (all 9 sections)
-    console.log("📋 Assigning lecturer...");
-    await Promise.all(
-      sections.map((section) =>
+    // 11. Assign Lecturers to Sections
+    console.log("📋 Assigning lecturers...");
+    await Promise.all([
+      // CNTT sections -> lecturer 1
+      ...sections.slice(0, 6).map((section) =>
         prisma.teachingAssignment.create({
           data: {
             sectionId: section.id,
             lecturerId: lecturer.id,
           },
         })
-      )
-    );
-    console.log(`   ✓ Assigned lecturer to ${sections.length} sections`);
+      ),
+      // KTDT sections -> lecturer 2
+      ...sections.slice(6, 9).map((section) =>
+        prisma.teachingAssignment.create({
+          data: {
+            sectionId: section.id,
+            lecturerId: lecturer2.id,
+          },
+        })
+      ),
+      // General sections -> lecturer 1
+      ...sections.slice(9).map((section) =>
+        prisma.teachingAssignment.create({
+          data: {
+            sectionId: section.id,
+            lecturerId: lecturer.id,
+          },
+        })
+      ),
+    ]);
+    console.log(`   ✓ Assigned lecturers to ${sections.length} sections`);
 
     // 12. Create Schedules (3 per section)
     console.log("⏰ Creating schedules...");
@@ -381,20 +562,24 @@ async function main() {
     console.log("\n✅ Minimal data created successfully!\n");
     console.log("📋 Summary:");
     console.log(`   - Rooms: ${rooms.length}`);
-    console.log(`   - Semester: ${semester.name} ${semester.academicYear}`);
-    console.log(`   - Department: ${dept.name}`);
-    console.log(`   - Class: ${classGroup.name}`);
-    console.log(`   - Subjects: ${subjects.length} (3 department + 3 general)`);
-    console.log(`   - Sections: ${sections.length} (6 department + 3 general)`);
-    console.log(`   - Schedules: ${schedules.length} (3 per section)`);
-    console.log(`   - Exams: ${exams.length} (1 per section)`);
+    console.log(`   - Semesters: 1 (HK1 2024-2025 - ENROLLMENT)`);
+    console.log(`   - Departments: 2 (CNTT, KTDT)`);
+    console.log(`   - Majors: 2 (CNTT-SE, KTDT-AC)`);
+    console.log(`   - Class Groups: 2 (CNTT-K20, KTDT-AC-1)`);
+    console.log(`   - Subjects: 9 (6 department + 3 general)`);
+    console.log(`   - Sections: 12 (9 department + 3 general)`);
+    console.log(`   - Schedules: ${schedules.length}`);
+    console.log(`   - Exams: ${exams.length}`);
     console.log(`\n📚 Subject Details:`);
-    console.log(`   Department: JAVA101, DB101, NET101 (each has 2 sections)`);
+    console.log(`   CNTT: JAVA101, DB101, NET101 (each has 2 sections)`);
+    console.log(`   KTDT: DIEN-AC, DIEN-DC, DIEN-NANG (each has 1 section)`);
     console.log(`   General: PHIL101, LAW101, HIST101 (each has 1 section)`);
     console.log(`\n🔐 Test Accounts:`);
     console.log(`   Admin: admin@university.edu / Admin@123`);
-    console.log(`   Lecturer: lecturer@university.edu / Lecturer@123`);
-    console.log(`   Student: student@university.edu / Student@123`);
+    console.log(`   Lecturer 1 (CNTT): lecturer@university.edu / Lecturer@123`);
+    console.log(`   Lecturer 2 (KTDT): lecturer2@university.edu / Lecturer@123`);
+    console.log(`   Student 1 (CNTT): student@university.edu / Student@123`);
+    console.log(`   Student 2 (KTDT): soukthavilay@university.edu / Student@123`);
   } catch (error) {
     console.error("❌ Error:", error.message);
     process.exit(1);

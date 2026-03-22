@@ -96,6 +96,7 @@ model Department {
   code String @unique
   name String
 
+  majors        Major[]
   classGroups   ClassGroup[]
   students      Student[]
   lecturers     Lecturer[]
@@ -104,13 +105,28 @@ model Department {
   curriculum    Curriculum?
 }
 
-model ClassGroup {
+model Major {
   id           Int    @id @default(autoincrement())
   code         String @unique
   name         String
   departmentId Int
 
+  department    Department     @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  classGroups   ClassGroup[]
+  students      Student[]
+
+  @@index([departmentId])
+}
+
+model ClassGroup {
+  id           Int    @id @default(autoincrement())
+  code         String @unique
+  name         String
+  departmentId Int
+  majorId      Int
+
   department    Department     @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  major         Major          @relation(fields: [majorId], references: [id], onDelete: Restrict)
   students      Student[]
   sections      Section[]
   announcements Announcement[]
@@ -123,6 +139,7 @@ model Student {
   userId       Int           @unique
   studentCode  String        @unique
   departmentId Int
+  majorId      Int
   classGroupId Int
   curriculumId Int?
   phone        String?
@@ -133,6 +150,7 @@ model Student {
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   department  Department   @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  major       Major        @relation(fields: [majorId], references: [id], onDelete: Restrict)
   classGroup  ClassGroup   @relation(fields: [classGroupId], references: [id], onDelete: Restrict)
   curriculum  Curriculum?  @relation(fields: [curriculumId], references: [id], onDelete: Restrict)
   enrollments Enrollment[]
@@ -141,6 +159,7 @@ model Student {
 
   @@index([classGroupId])
   @@index([departmentId])
+  @@index([majorId])
   @@index([curriculumId])
 }
 
@@ -236,10 +255,11 @@ model TeachingAssignment {
 }
 
 model Enrollment {
-  id        Int      @id @default(autoincrement())
-  sectionId Int
-  studentId Int
-  createdAt DateTime @default(now())
+  id                  Int      @id @default(autoincrement())
+  sectionId           Int
+  studentId           Int
+  enrollmentDate      DateTime @default(now())
+  isEligibleForExam   Boolean? // null = auto-calculate, true/false = manual override
 
   section         Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   student         Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)

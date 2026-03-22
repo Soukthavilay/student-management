@@ -36,6 +36,7 @@ export default function ExamsScreen() {
   const colors = isDark ? Colors.dark : Colors.light;
 
   const [exams, setExams] = useState([]);
+  const [examEligibility, setExamEligibility] = useState({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -43,11 +44,33 @@ export default function ExamsScreen() {
     if (showLoader) setLoading(true);
     try {
       const response = await api.student.getExams();
-      setExams(response.data.exams || []);
-      await setCache('exams', response.data.exams);
-    } catch {
+      const examsData = response.data.exams || [];
+      setExams(examsData);
+      await setCache('exams', examsData);
+
+      // Load exam eligibility for each exam
+      const eligibilityMap = {};
+      for (const exam of examsData) {
+        try {
+          const eligResponse = await api.student.getExamEligibility({
+            sectionId: exam.sectionId,
+          });
+          if (eligResponse.data) {
+            eligibilityMap[exam.id] = eligResponse.data;
+          }
+        } catch (error) {
+          console.log(`Error loading eligibility for exam ${exam.id}:`, error);
+          // Silently fail for individual eligibility checks
+        }
+      }
+      setExamEligibility(eligibilityMap);
+      await setCache('exam-eligibility', eligibilityMap);
+    } catch (error) {
+      console.log('Error loading exams:', error);
       const cached = await getCached('exams');
       if (cached) setExams(cached);
+      const cachedEligibility = await getCached('exam-eligibility');
+      if (cachedEligibility) setExamEligibility(cachedEligibility);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -96,6 +119,8 @@ export default function ExamsScreen() {
             const daysUntil = getDaysUntil(exam.examDate);
             const isPast = daysUntil < 0;
             const isUrgent = daysUntil >= 0 && daysUntil <= 3;
+            const eligibility = examEligibility[exam.id];
+            const isNotEligible = eligibility && eligibility.isEligible === false;
 
             return (
               <View
@@ -105,11 +130,13 @@ export default function ExamsScreen() {
                   {
                     backgroundColor: colors.card,
                     shadowColor: colors.cardShadow,
-                    borderLeftColor: isPast
-                      ? colors.textTertiary
-                      : isUrgent
-                        ? colors.error
-                        : colors.accent,
+                    borderLeftColor: isNotEligible
+                      ? colors.error
+                      : isPast
+                        ? colors.textTertiary
+                        : isUrgent
+                          ? colors.error
+                          : colors.accent,
                   },
                 ]}
               >
@@ -121,11 +148,13 @@ export default function ExamsScreen() {
                     style={[
                       styles.typeBadge,
                       {
-                        backgroundColor: isPast
-                          ? colors.surfaceSecondary
-                          : isUrgent
-                            ? colors.error + '20'
-                            : colors.accent + '20',
+                        backgroundColor: isNotEligible
+                          ? colors.error + '20'
+                          : isPast
+                            ? colors.surfaceSecondary
+                            : isUrgent
+                              ? colors.error + '20'
+                              : colors.accent + '20',
                       },
                     ]}
                   >
@@ -133,15 +162,17 @@ export default function ExamsScreen() {
                       style={[
                         styles.typeBadgeText,
                         {
-                          color: isPast
-                            ? colors.textTertiary
-                            : isUrgent
-                              ? colors.error
-                              : colors.accent,
+                          color: isNotEligible
+                            ? colors.error
+                            : isPast
+                              ? colors.textTertiary
+                              : isUrgent
+                                ? colors.error
+                                : colors.accent,
                         },
                       ]}
                     >
-                      {exam.type}
+                      {isNotEligible ? 'Không đủ điều kiện' : exam.type}
                     </Text>
                   </View>
                 </View>
@@ -149,6 +180,20 @@ export default function ExamsScreen() {
                 <Text style={[styles.subjectCode, { color: colors.textSecondary }]}>
                   {exam.section?.subject?.code || ''} — {exam.section?.code || ''}
                 </Text>
+
+                {isNotEligible && eligibility && (
+                  <View style={[styles.warningBox, { backgroundColor: colors.error + '15' }]}>
+                    <Ionicons name="alert-circle" size={16} color={colors.error} />
+                    <View style={{ flex: 1, marginLeft: Spacing.sm }}>
+                      <Text style={[styles.warningTitle, { color: colors.error }]}>
+                        Vắng quá {eligibility.absenceThreshold ?? 20}%
+                      </Text>
+                      <Text style={[styles.warningText, { color: colors.error }]}>
+                        Tỉ lệ vắng: {eligibility.absenceRate ?? 0}% (Ngưỡng: {eligibility.absenceThreshold ?? 20}%)
+                      </Text>
+                    </View>
+                  </View>
+                )}
 
                 <View style={styles.metaRow}>
                   <Ionicons name="calendar-outline" size={14} color={colors.accent} />
@@ -166,7 +211,7 @@ export default function ExamsScreen() {
                   </View>
                 )}
 
-                {!isPast && (
+                {!isPast && !isNotEligible && (
                   <Text
                     style={[
                       styles.countdown,
@@ -242,6 +287,21 @@ const styles = StyleSheet.create({
   subjectCode: {
     fontSize: FontSize.xs,
     marginBottom: Spacing.md,
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
+  },
+  warningTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  warningText: {
+    fontSize: FontSize.xs,
   },
   metaRow: {
     flexDirection: 'row',

@@ -11,6 +11,14 @@ export const api = {
     updateDepartment: (id, payload) => http.put(`/admin/departments/${id}`, payload),
     deleteDepartment: (id) => http.delete(`/admin/departments/${id}`),
 
+    majors: (departmentId) =>
+      http.get("/admin/majors", {
+        params: departmentId ? { departmentId } : undefined,
+      }),
+    createMajor: (payload) => http.post("/admin/majors", payload),
+    updateMajor: (id, payload) => http.put(`/admin/majors/${id}`, payload),
+    deleteMajor: (id) => http.delete(`/admin/majors/${id}`),
+
     classGroups: (departmentId) =>
       http.get("/admin/class-groups", {
         params: departmentId ? { departmentId } : undefined,
@@ -94,5 +102,6 @@ export const api = {
     createAnnouncement: (payload) => http.post("/lecturer/announcements", payload),
     getAttendance: (params) => http.get("/lecturer/attendance", { params }),
     markAttendance: (payload) => http.post("/lecturer/attendance", payload),
+    getAttendanceSchedule: (params) => http.get("/lecturer/attendance/schedule", { params }),
   },
 };
