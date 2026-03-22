@@ -46,6 +46,18 @@ export function AuthProvider({ children }) {
     const response = await api.auth.login({ email, password });
     const { accessToken, refreshToken, user: userData } = response.data;
 
+    // Check if user is a student
+    if (userData.role !== 'STUDENT') {
+      const roleNames = {
+        ADMIN: 'Admin',
+        LECTURER: 'Giảng viên',
+        STUDENT: 'Sinh viên',
+      };
+      throw new Error(
+        `Tài khoản ${roleNames[userData.role] || userData.role} không thể đăng nhập vào ứng dụng sinh viên. Vui lòng sử dụng tài khoản sinh viên.`
+      );
+    }
+
     await SecureStore.setItemAsync('sm_access_token', accessToken);
     await SecureStore.setItemAsync('sm_refresh_token', refreshToken);
     await SecureStore.setItemAsync('sm_user', JSON.stringify(userData));
