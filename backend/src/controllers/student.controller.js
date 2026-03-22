@@ -1,5 +1,5 @@
 import { prisma } from "../lib/prisma.js";
-import { notFound } from "../utils/http-error.js";
+import { notFound, badRequest, forbidden } from "../utils/http-error.js";
 import { parsePagination, paginationMeta } from "../utils/pagination.js";
 import { createAuditLog } from "../services/audit.service.js";
 
@@ -21,14 +21,16 @@ async function calculateAbsenceRate(studentId, sectionId) {
   const attendances = await prisma.attendance.findMany({
     where: {
       studentId,
-      section: { id: sectionId },
+      sectionId,
     },
   });
 
   if (attendances.length === 0) return 0;
 
   const absenceCount = attendances.filter(a => a.status === "ABSENT").length;
-  return absenceCount / attendances.length;
+  const rate = absenceCount / attendances.length;
+  console.log(`[calculateAbsenceRate] Student ${studentId}, Section ${sectionId}: total=${attendances.length}, absent=${absenceCount}, rate=${(rate * 100).toFixed(1)}%`);
+  return rate;
 }
 
 async function checkExamEligibility(studentId, sectionId) {
@@ -59,7 +61,9 @@ async function checkExamEligibility(studentId, sectionId) {
   }
 
   const absenceRate = await calculateAbsenceRate(studentId, sectionId);
-  return absenceRate <= ABSENCE_THRESHOLD;
+  const isEligible = absenceRate <= ABSENCE_THRESHOLD;
+  console.log(`[checkExamEligibility] Student ${studentId}, Section ${sectionId}: absenceRate=${(absenceRate * 100).toFixed(1)}%, threshold=${(ABSENCE_THRESHOLD * 100).toFixed(1)}%, eligible=${isEligible}`);
+  return isEligible;
 }
 
 export async function getProfile(req, res, next) {
@@ -226,6 +230,7 @@ export async function listExams(req, res, next) {
       },
       select: {
         id: true,
+        sectionId: true,
         examDate: true,
         room: {
           select: { id: true, name: true }
@@ -756,7 +761,7 @@ export async function getExamEligibility(req, res, next) {
     const { sectionId } = req.query;
 
     if (!sectionId) {
-      return res.json({ data: [] });
+      throw badRequest("sectionId is required");
     }
 
     const enrollment = await prisma.enrollment.findUnique({
@@ -776,7 +781,7 @@ export async function getExamEligibility(req, res, next) {
     });
 
     if (!enrollment) {
-      return res.json({ data: null, message: "Sinh viên chưa đăng ký học phần này" });
+      throw notFound("Sinh viên chưa đăng ký học phần này");
     }
 
     const absenceRate = await calculateAbsenceRate(student.id, Number(sectionId));

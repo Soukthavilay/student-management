@@ -148,14 +148,15 @@ model Student {
 
   currentSemester Int @default(1)
 
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  department  Department   @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  major       Major        @relation(fields: [majorId], references: [id], onDelete: Restrict)
-  classGroup  ClassGroup   @relation(fields: [classGroupId], references: [id], onDelete: Restrict)
-  curriculum  Curriculum?  @relation(fields: [curriculumId], references: [id], onDelete: Restrict)
-  enrollments Enrollment[]
-  tuitionFees TuitionFee[]
-  attendances Attendance[]
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department          Department           @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  major               Major                @relation(fields: [majorId], references: [id], onDelete: Restrict)
+  classGroup          ClassGroup           @relation(fields: [classGroupId], references: [id], onDelete: Restrict)
+  curriculum          Curriculum?          @relation(fields: [curriculumId], references: [id], onDelete: Restrict)
+  enrollments         Enrollment[]
+  tuitionFees         TuitionFee[]
+  attendances         Attendance[]
+  examRegistrations   ExamRegistration[]
 
   @@index([classGroupId])
   @@index([departmentId])
@@ -320,11 +321,25 @@ model Exam {
   examDate  DateTime
   type      String
 
-  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  room    Room?   @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  section             Section              @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  room                Room?                @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  examRegistrations   ExamRegistration[]
 
   @@index([sectionId])
   @@index([roomId])
+}
+
+model ExamRegistration {
+  id               Int      @id @default(autoincrement())
+  examId           Int
+  studentId        Int
+  registrationDate DateTime @default(now())
+
+  exam    Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, studentId])
+  @@index([studentId])
 }
 
 model Announcement {

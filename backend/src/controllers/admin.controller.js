@@ -573,8 +573,8 @@ export async function updateSchedule(req, res, next) {
     const updated = await prisma.schedule.update({
       where: { id: Number(id) },
       data: {
-        ...(sectionId && { sectionId }),
-        ...(dayOfWeek && { dayOfWeek }),
+        ...(sectionId !== undefined && { sectionId }),
+        ...(dayOfWeek !== undefined && { dayOfWeek }),
         ...(shift !== undefined && { shift }),
         ...(roomId !== undefined && { roomId }),
       },
@@ -640,10 +640,10 @@ export async function updateExam(req, res, next) {
     const updated = await prisma.exam.update({
       where: { id: Number(id) },
       data: {
-        ...(sectionId && { sectionId }),
-        ...(examDate && { examDate }),
+        ...(sectionId !== undefined && { sectionId }),
+        ...(examDate !== undefined && { examDate }),
         ...(roomId !== undefined && { roomId }),
-        ...(type && { type }),
+        ...(type !== undefined && { type }),
       },
     });
 

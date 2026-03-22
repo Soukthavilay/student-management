@@ -116,14 +116,14 @@ function SemesterSection({ semester, curriculumSubjects, enrollments, colors, is
 
       {expanded && (
         <View style={styles.semesterContent}>
-          {allItems.map(({ curriculumSubject, enrollment }) => {
+          {allItems.map(({ curriculumSubject, enrollment }, index) => {
             const hasGrade = enrollment?.grade?.finalScore != null;
             const statusText = getStatusText(null, enrollment);
             const statusColor = getStatusColor(null, enrollment, colors);
             const subjectName = curriculumSubject?.subject?.name || enrollment?.section?.subject?.name;
             const subjectCode = curriculumSubject?.subject?.code || enrollment?.section?.subject?.code;
             const credits = curriculumSubject?.subject?.credits || enrollment?.section?.subject?.credits;
-            const itemKey = curriculumSubject?.subject?.id || enrollment?.id;
+            const itemKey = enrollment?.id ? `enrollment-${enrollment.id}` : `curriculum-${curriculumSubject?.subject?.id}-${index}`;
 
             return (
               <View

@@ -7,13 +7,14 @@ async function main() {
   console.log("🧹 Cleaning all data...\n");
 
   try {
-    // Clean up all data
+    // Clean up all data (order matters due to foreign keys)
     await prisma.gradeComponent.deleteMany();
     await prisma.grade.deleteMany();
     await prisma.tuitionFeeItem.deleteMany();
     await prisma.tuitionFee.deleteMany();
     await prisma.tuitionConfig.deleteMany();
     await prisma.enrollment.deleteMany();
+    await prisma.examRegistration.deleteMany();
     await prisma.teachingAssignment.deleteMany();
     await prisma.exam.deleteMany();
     await prisma.schedule.deleteMany();
@@ -23,11 +24,11 @@ async function main() {
     await prisma.deviceToken.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.auditLog.deleteMany();
-    await prisma.curriculumSubject.deleteMany();
-    await prisma.curriculum.deleteMany();
     await prisma.student.deleteMany();
     await prisma.lecturer.deleteMany();
     await prisma.admin.deleteMany();
+    await prisma.curriculumSubject.deleteMany();
+    await prisma.curriculum.deleteMany();
     await prisma.section.deleteMany();
     await prisma.subject.deleteMany();
     await prisma.classGroup.deleteMany();
@@ -548,7 +549,62 @@ async function main() {
     ]);
     console.log(`   ✓ Created ${exams.length} exams`);
 
-    // 14. Create Tuition Config
+    // 14. Create Enrollments for Students
+    console.log("📝 Creating enrollments...");
+    const student = await prisma.student.findUnique({
+      where: { userId: studentUser.id },
+    });
+    const student2 = await prisma.student.findUnique({
+      where: { userId: studentUser2.id },
+    });
+
+    // Student 1 (CNTT) enrolls in CNTT sections (0-5) + general sections (6-8)
+    const enrollments1 = await Promise.all([
+      ...sections.slice(0, 6).map((section) =>
+        prisma.enrollment.create({
+          data: {
+            sectionId: section.id,
+            studentId: student.id,
+            enrollmentDate: new Date(),
+          },
+        })
+      ),
+      ...sections.slice(6).map((section) =>
+        prisma.enrollment.create({
+          data: {
+            sectionId: section.id,
+            studentId: student.id,
+            enrollmentDate: new Date(),
+          },
+        })
+      ),
+    ]);
+
+    // Student 2 (KTDT) enrolls in KTDT sections (6-8) + general sections (9-11)
+    const enrollments2 = await Promise.all([
+      ...sections.slice(6, 9).map((section) =>
+        prisma.enrollment.create({
+          data: {
+            sectionId: section.id,
+            studentId: student2.id,
+            enrollmentDate: new Date(),
+          },
+        })
+      ),
+      ...sections.slice(9).map((section) =>
+        prisma.enrollment.create({
+          data: {
+            sectionId: section.id,
+            studentId: student2.id,
+            enrollmentDate: new Date(),
+          },
+        })
+      ),
+    ]);
+
+    console.log(`   ✓ Created ${enrollments1.length + enrollments2.length} enrollments`);
+
+    // 15. Create Tuition Config
     console.log("💰 Creating tuition config...");
     const tuitionConfig = await prisma.tuitionConfig.create({
       data: {

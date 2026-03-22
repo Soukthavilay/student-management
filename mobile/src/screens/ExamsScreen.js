@@ -43,8 +43,10 @@ export default function ExamsScreen() {
   const loadData = useCallback(async (showLoader = true) => {
     if (showLoader) setLoading(true);
     try {
+      // Always fetch fresh data from backend, don't use cache
       const response = await api.student.getExams();
       const examsData = response.data.exams || [];
+      console.log('Exams loaded from backend:', examsData.map(e => ({ id: e.id, sectionId: e.sectionId })));
       setExams(examsData);
       await setCache('exams', examsData);
 
@@ -57,12 +59,14 @@ export default function ExamsScreen() {
           });
           if (eligResponse.data) {
             eligibilityMap[exam.id] = eligResponse.data;
+            console.log(`Exam ${exam.id} eligibility:`, eligResponse.data);
           }
         } catch (error) {
-          console.log(`Error loading eligibility for exam ${exam.id}:`, error);
+          console.log(`Error loading eligibility for exam ${exam.id}:`, error.message);
           // Silently fail for individual eligibility checks
         }
       }
+      console.log('All eligibilities loaded:', eligibilityMap);
       setExamEligibility(eligibilityMap);
       await setCache('exam-eligibility', eligibilityMap);
     } catch (error) {

@@ -80,11 +80,11 @@ npm install --prefix backend
 # Setup database (nếu chưa có)
 docker compose up -d  # hoặc setup MySQL thủ công
 
-# Migrate schema
+# Migrate schema đầy đủ
 npm run prisma:generate --prefix backend
 npm run prisma:push --prefix backend
 
-# Seed dữ liệu (3 tài khoản + dữ liệu test)
+# Seed dữ liệu đầy đủ (tất cả dữ liệu test)
 node backend/clean-and-seed-minimal.js
 
 # Chạy backend
@@ -92,6 +92,12 @@ npm run dev:backend
 ```
 
 Backend chạy tại: `http://localhost:4000`
+
+**Lưu ý**: Nếu cần reset dữ liệu, chạy lại lệnh seed:
+
+```bash
+node backend/clean-and-seed-minimal.js
+```
 
 ### 3.2 Khởi động Web Admin
 
@@ -113,9 +119,11 @@ Expo chạy tại: `http://localhost:8081`
 
 ---
 
-## 4) Tài khoản Test
+## 4) Tài khoản Test & Dữ liệu Seed
 
-Sau khi chạy `clean-and-seed-minimal.js`, có 3 tài khoản:
+Sau khi chạy `clean-and-seed-minimal.js`, hệ thống được khởi tạo đầy đủ với:
+
+### Tài khoản Test (3 tài khoản)
 
 | Role     | Email                     | Password       | Ghi chú          |
 | -------- | ------------------------- | -------------- | ---------------- |
@@ -123,16 +131,59 @@ Sau khi chạy `clean-and-seed-minimal.js`, có 3 tài khoản:
 | Lecturer | `lecturer@university.edu` | `Lecturer@123` | Giảng viên web   |
 | Student  | `student@university.edu`  | `Student@123`  | Sinh viên mobile |
 
-### Dữ liệu Test
+### Dữ liệu Seed Đầy Đủ
 
-- **1 Khoa**: CNTT
-- **1 Lớp**: CNTT-K20
-- **3 Môn học**: Java, DB, Network
-- **3 Lớp học phần**: JAVA101-01, DB101-01, NET101-01
+**Cơ cấu tổ chức:**
+
+- **1 Khoa**: CNTT (Công Nghệ Thông Tin)
+- **1 Ngành**: CNTT-2024
+- **1 Lớp sinh hoạt**: CNTT-K20
+
+**Môn học & Lớp học phần:**
+
+- **3 Môn học**:
+  - Java Programming (6 tín chỉ)
+  - Database Systems (4 tín chỉ)
+  - Network Fundamentals (3 tín chỉ)
+- **3 Lớp học phần**:
+  - JAVA101-01 (Java Programming)
+  - DB101-01 (Database Systems)
+  - NET101-01 (Network Fundamentals)
+
+**Lịch học:**
+
 - **3 Phòng học**: A101, A102, A103
 - **9 Buổi học**: 3 buổi/lớp, không trùng lịch
+  - Thứ 2-4, ca 1-3 (không trùng)
+
+**Lịch thi:**
+
 - **3 Lịch thi**: 15/12, 16/12, 17/12/2024
+- Mỗi lớp học phần có 1 lịch thi
+
+**Cấu hình học phí:**
+
 - **Giá tín chỉ**: 500,000đ/TC
+- Tự động tính toán khi sinh viên đăng ký
+
+**Học kỳ:**
+
+- **Học kỳ hiện tại**: HK1 2024-2025 (trạng thái: ENROLLMENT)
+- Cho phép đăng ký/hủy đăng ký học phần
+
+**Sinh viên:**
+
+- **1 Sinh viên test**: student@university.edu
+  - Mã sinh viên: SV001
+  - Lớp: CNTT-K20
+  - Khoa: CNTT
+
+**Giảng viên:**
+
+- **1 Giảng viên test**: lecturer@university.edu
+  - Mã giảng viên: GV001
+  - Khoa: CNTT
+  - Được phân công dạy 3 lớp học phần
 
 ---
 
