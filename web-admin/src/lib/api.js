@@ -91,6 +91,8 @@ export const api = {
     deleteTuitionConfig: (id) => http.delete(`/admin/tuition-configs/${id}`),
 
     listAssignments: () => http.get("/admin/assignments"),
+
+    paymentTransactions: (params) => http.get("/admin/payment-transactions", { params }),
   },
   lecturer: {
     sections: () => http.get("/lecturer/sections"),

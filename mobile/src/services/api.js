@@ -24,6 +24,8 @@ export const api = {
     getExamEligibility: (params) =>
       http.get('/student/exam-eligibility', { params }),
     registerExam: (payload) => http.post('/student/exams/register', payload),
+    createPayment: (payload) => http.post('/student/payments/create', payload),
+    getPayments: () => http.get('/student/payments'),
   },
   notifications: {
     registerDevice: (payload) =>

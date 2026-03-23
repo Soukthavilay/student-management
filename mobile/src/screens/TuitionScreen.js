@@ -7,6 +7,8 @@ import {
   RefreshControl,
   ActivityIndicator,
   TouchableOpacity,
+  Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,7 +31,7 @@ function formatDate(dateStr) {
   });
 }
 
-function SemesterFeeSection({ tuitionFee, config, colors, isDark }) {
+function SemesterFeeSection({ tuitionFee, config, colors, isDark, onPay }) {
   const [expanded, setExpanded] = useState(true);
 
   const semesterTotals = {
@@ -157,6 +159,19 @@ function SemesterFeeSection({ tuitionFee, config, colors, isDark }) {
               {formatCurrency(semesterTotals.debt)}
             </Text>
           </View>
+
+          {/* Pay Button */}
+          {hasDebt && (
+            <TouchableOpacity
+              style={styles.payButton}
+              onPress={() => onPay(tuitionFee.id, semesterTotals.debt)}
+            >
+              <Ionicons name="card-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.payButtonText}>
+                Thanh toán {formatCurrency(semesterTotals.debt)} đ qua VNPay
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </View>
@@ -193,6 +208,33 @@ export default function TuitionScreen({ navigation }) {
   const onRefresh = () => {
     setRefreshing(true);
     loadData(false);
+  };
+
+  const handlePay = async (tuitionFeeId, amount) => {
+    Alert.alert(
+      'Xác nhận thanh toán',
+      `Bạn muốn thanh toán ${formatCurrency(amount)} đ qua VNPay?`,
+      [
+        { text: 'Huỷ', style: 'cancel' },
+        {
+          text: 'Thanh toán',
+          onPress: async () => {
+            try {
+              const res = await api.student.createPayment({ tuitionFeeId, amount });
+              const paymentUrl = res.data?.data?.paymentUrl;
+              if (paymentUrl) {
+                await Linking.openURL(paymentUrl);
+              } else {
+                Alert.alert('Lỗi', 'Không thể tạo link thanh toán');
+              }
+            } catch (err) {
+              const msg = err.response?.data?.message || 'Có lỗi xảy ra khi tạo thanh toán';
+              Alert.alert('Lỗi', msg);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -277,6 +319,7 @@ export default function TuitionScreen({ navigation }) {
                 config={config}
                 colors={colors}
                 isDark={isDark}
+                onPay={handlePay}
               />
             );
           })
@@ -475,6 +518,22 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: '700',
     textAlign: 'right',
+  },
+  payButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: '#1E3A5F',
+    marginHorizontal: Spacing.md,
+    marginVertical: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  payButtonText: {
+    color: '#FFFFFF',
+    fontSize: FontSize.sm,
+    fontWeight: '700',
   },
   emptyState: {
     alignItems: 'center',

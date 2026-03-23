@@ -1611,10 +1611,6 @@ export async function generateTuitionFees(req, res, next) {
         create: {
           studentId,
           semesterId,
-          amountDue: 0,
-          amountPaid: 0,
-          discount: 0,
-          debt: 0,
         },
       });
 
@@ -1641,13 +1637,6 @@ export async function generateTuitionFees(req, res, next) {
 
       if (items.length > 0) {
         await prisma.tuitionFeeItem.createMany({ data: items });
-        await prisma.tuitionFee.update({
-          where: { id: tuitionFee.id },
-          data: {
-            amountDue: totalAmountDue,
-            debt: totalAmountDue,
-          },
-        });
       }
 
       await createAuditLog({

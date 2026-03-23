@@ -290,6 +290,8 @@ function toEmail(code) {
 
 async function main() {
   // Clean up
+  await prisma.paymentTransaction.deleteMany();
+  await prisma.examRegistration.deleteMany();
   await prisma.gradeComponent.deleteMany();
   await prisma.grade.deleteMany();
   await prisma.tuitionFeeItem.deleteMany();
@@ -313,6 +315,7 @@ async function main() {
   await prisma.section.deleteMany();
   await prisma.subject.deleteMany();
   await prisma.classGroup.deleteMany();
+  await prisma.major.deleteMany();
   await prisma.department.deleteMany();
   await prisma.user.deleteMany();
   await prisma.semester.deleteMany();
@@ -355,11 +358,16 @@ async function main() {
       data: { code: dept.code, name: dept.name },
     });
 
+    // Major (one default major per department)
+    const major = await prisma.major.create({
+      data: { code: dept.code, name: dept.name, departmentId: department.id },
+    });
+
     // Classes
     const classGroups = [];
     for (const cls of dept.classes) {
       const cg = await prisma.classGroup.create({
-        data: { code: cls.code, name: cls.name, departmentId: department.id },
+        data: { code: cls.code, name: cls.name, departmentId: department.id, majorId: major.id },
       });
       classGroups.push(cg);
     }
@@ -492,6 +500,7 @@ async function main() {
             create: {
               studentCode: stu.code,
               departmentId: department.id,
+              majorId: major.id,
               classGroupId: cg.id,
               phone: stu.phone,
               address: stu.address,
@@ -594,10 +603,9 @@ async function main() {
   console.log("\n═══════════════════════════════════════");
   console.log("  Seed hoàn tất!");
   console.log("═══════════════════════════════════════");
-  console.log("  Admin:       admin@school.edu.vn");
-  console.log("  Giảng viên:  hung.nv@school.edu.vn  (hoặc bất kỳ GV nào)");
-  console.log("  Sinh viên:   sv001@school.edu.vn     (hoặc bất kỳ SV nào)");
-  console.log("  Mật khẩu:    123456");
+  console.log("  Admin:       admin@university.edu / Admin@123");
+  console.log("  Giảng viên:  hung.nv@school.edu.vn  / 123456");
+  console.log("  Sinh viên:   sv001@school.edu.vn     / 123456");
   console.log("═══════════════════════════════════════\n");
 }
 

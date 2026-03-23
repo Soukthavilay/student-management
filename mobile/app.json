@@ -25,7 +25,7 @@
     },
     "extra": {
       // "apiBaseUrl": "http://192.168.100.9:4000/api"
-      "apiBaseUrl": "http://192.168.1.109:4000/api"
+      "apiBaseUrl": "http://192.168.1.78:4000/api"
     },
     "plugins": [
       "expo-secure-store",

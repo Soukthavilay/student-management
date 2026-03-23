@@ -16,6 +16,7 @@ import {
   getExamEligibility,
   registerExam,
 } from "../controllers/student.controller.js";
+import { createPayment, listStudentPayments } from "../controllers/payment.controller.js";
 import {
   availableSectionsQuerySchema,
   dropSectionSchema,
@@ -43,3 +44,6 @@ studentRouter.post("/enrollments", validate(registerSectionSchema), registerSect
 studentRouter.delete("/enrollments/:sectionId", validate(dropSectionSchema), dropSection);
 studentRouter.get("/exam-eligibility", getExamEligibility);
 studentRouter.post("/exams/register", registerExam);
+
+studentRouter.post("/payments/create", createPayment);
+studentRouter.get("/payments", listStudentPayments);

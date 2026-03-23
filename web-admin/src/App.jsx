@@ -20,11 +20,13 @@ import TuitionPage from "./pages/TuitionPage";
 import EnrollmentsPage from "./pages/EnrollmentsPage";
 import MajorPage from "./pages/MajorPage";
 import ClassGroupPage from "./pages/ClassGroupPage";
+import PaymentResultPage from "./pages/PaymentResultPage";
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/payment-result" element={<PaymentResultPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>

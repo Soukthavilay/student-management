@@ -61,6 +61,7 @@ import {
   updateMajor,
   deleteMajor,
 } from "../controllers/admin.controller.js";
+import { listPaymentTransactions } from "../controllers/payment.controller.js";
 import {
   assignLecturerSchema,
   createAnnouncementSchema,
@@ -173,3 +174,5 @@ adminRouter.put("/semesters/:id", validate(updateSemesterSchema), updateSemester
 adminRouter.get("/rooms", listRooms);
 adminRouter.post("/rooms", validate(createRoomSchema), createRoom);
 adminRouter.put("/rooms/:id", validate(updateRoomSchema), updateRoom);
+
+adminRouter.get("/payment-transactions", listPaymentTransactions);

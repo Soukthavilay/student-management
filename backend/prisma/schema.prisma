@@ -153,10 +153,11 @@ model Student {
   major               Major                @relation(fields: [majorId], references: [id], onDelete: Restrict)
   classGroup          ClassGroup           @relation(fields: [classGroupId], references: [id], onDelete: Restrict)
   curriculum          Curriculum?          @relation(fields: [curriculumId], references: [id], onDelete: Restrict)
-  enrollments         Enrollment[]
-  tuitionFees         TuitionFee[]
-  attendances         Attendance[]
-  examRegistrations   ExamRegistration[]
+  enrollments           Enrollment[]
+  tuitionFees           TuitionFee[]
+  paymentTransactions   PaymentTransaction[]
+  attendances           Attendance[]
+  examRegistrations     ExamRegistration[]
 
   @@index([classGroupId])
   @@index([departmentId])
@@ -426,9 +427,10 @@ model TuitionFee {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  student  Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  semester Semester         @relation(fields: [semesterId], references: [id], onDelete: Restrict)
-  items    TuitionFeeItem[]
+  student             Student              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  semester            Semester             @relation(fields: [semesterId], references: [id], onDelete: Restrict)
+  items               TuitionFeeItem[]
+  paymentTransactions PaymentTransaction[]
 
   @@unique([studentId, semesterId])
   @@index([studentId])
@@ -490,6 +492,36 @@ model Room {
 
   schedules Schedule[]
   exams     Exam[]
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model PaymentTransaction {
+  id             Int           @id @default(autoincrement())
+  studentId      Int
+  tuitionFeeId   Int
+  txnRef         String        @unique
+  amount         Float
+  orderInfo      String
+  vnpTxnNo       String?
+  bankCode       String?
+  payDate        String?
+  status         PaymentStatus @default(PENDING)
+  vnpResponseCode String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  tuitionFee TuitionFee @relation(fields: [tuitionFeeId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([tuitionFeeId])
+  @@index([txnRef])
+  @@index([status])
 }
 
 model Attendance {

@@ -19,4 +19,9 @@ export const env = {
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
   corsOrigin: process.env.CORS_ORIGIN || "http://localhost:5173",
   expoAccessToken: process.env.EXPO_ACCESS_TOKEN || "",
+  // VNPay Sandbox
+  vnpTmnCode: process.env.VNP_TMN_CODE || "CGXZLS0Z",
+  vnpHashSecret: process.env.VNP_HASH_SECRET || "XNBCJFAKAZQSGTARRLGCHVZWCIOIGSHN",
+  vnpPaymentUrl: process.env.VNP_PAYMENT_URL || "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+  vnpReturnUrl: process.env.VNP_RETURN_URL || "http://localhost:4000/api/vnpay/return",
 };

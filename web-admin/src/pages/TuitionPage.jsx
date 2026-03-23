@@ -290,6 +290,79 @@ function SemesterFeeTable({ tuitionFee, onDelete }) {
   );
 }
 
+function formatDateTime(dateStr) {
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+const statusMap = {
+  PENDING: { label: "Chờ thanh toán", cls: "bg-yellow-100 text-yellow-700" },
+  SUCCESS: { label: "Thành công", cls: "bg-green-100 text-green-700" },
+  FAILED: { label: "Thất bại", cls: "bg-red-100 text-red-700" },
+};
+
+function PaymentTransactionsTable({ transactions, isLoading }) {
+  return (
+    <div className="mb-6 rounded-lg border border-slate-200 bg-white">
+      <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+        <h3 className="font-medium text-slate-700">Lịch sử thanh toán VNPay</h3>
+      </div>
+      {isLoading ? (
+        <div className="py-12 text-center text-slate-400">Đang tải...</div>
+      ) : transactions.length === 0 ? (
+        <div className="py-12 text-center text-slate-400">Chưa có giao dịch thanh toán nào</div>
+      ) : (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase text-slate-500">
+              <th className="px-4 py-2">Mã GD</th>
+              <th className="px-4 py-2">Sinh viên</th>
+              <th className="px-4 py-2">Học kỳ</th>
+              <th className="px-4 py-2 text-right">Số tiền</th>
+              <th className="px-4 py-2 text-center">Trạng thái</th>
+              <th className="px-4 py-2">Ngân hàng</th>
+              <th className="px-4 py-2">Mã VNPay</th>
+              <th className="px-4 py-2">Thời gian</th>
+            </tr>
+          </thead>
+          <tbody>
+            {transactions.map((tx) => {
+              const st = statusMap[tx.status] || statusMap.PENDING;
+              return (
+                <tr key={tx.id} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="px-4 py-2 font-mono text-xs text-slate-600">{tx.txnRef}</td>
+                  <td className="px-4 py-2">
+                    <div className="text-slate-900">{tx.student?.user?.fullName}</div>
+                    <div className="text-xs text-slate-500">{tx.student?.studentCode}</div>
+                  </td>
+                  <td className="px-4 py-2 text-slate-700">
+                    {tx.tuitionFee?.semester?.name} ({tx.tuitionFee?.semester?.academicYear})
+                  </td>
+                  <td className="px-4 py-2 text-right font-medium">{formatCurrency(tx.amount)} đ</td>
+                  <td className="px-4 py-2 text-center">
+                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${st.cls}`}>
+                      {st.label}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2 text-slate-600">{tx.bankCode || "-"}</td>
+                  <td className="px-4 py-2 font-mono text-xs text-slate-600">{tx.vnpTxnNo || "-"}</td>
+                  <td className="px-4 py-2 text-slate-600">{formatDateTime(tx.createdAt)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 export default function TuitionPage() {
   const queryClient = useQueryClient();
   const [showGenerate, setShowGenerate] = useState(false);
@@ -297,6 +370,7 @@ export default function TuitionPage() {
   const [editingConfig, setEditingConfig] = useState(null);
   const [filterStudentId, setFilterStudentId] = useState("");
   const [filterSemesterId, setFilterSemesterId] = useState("");
+  const [activeTab, setActiveTab] = useState("fees");
 
   const { data: studentsData } = useQuery({
     queryKey: ["students-list"],
@@ -324,6 +398,13 @@ export default function TuitionPage() {
     queryKey: ["semesters"],
     queryFn: () => api.admin.semesters(),
     select: (res) => res.data?.data || [],
+  });
+
+  const { data: transactions = [], isLoading: txLoading } = useQuery({
+    queryKey: ["payment-transactions"],
+    queryFn: () => api.admin.paymentTransactions(),
+    select: (res) => res.data?.data || [],
+    enabled: activeTab === "transactions",
   });
 
   const generateMutation = useMutation({
@@ -407,110 +488,142 @@ export default function TuitionPage() {
         </div>
       </div>
 
-      {/* Config Table */}
-      <div className="mb-6 rounded-lg border border-slate-200 bg-white">
-        <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-          <h3 className="font-medium text-slate-700">Cấu hình giá tín chỉ</h3>
-        </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase text-slate-500">
-              <th className="px-4 py-2">Học kỳ</th>
-              <th className="px-4 py-2 text-right">Giá / tín chỉ</th>
-              <th className="px-4 py-2 text-center">Trạng thái</th>
-              <th className="px-4 py-2 text-center">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            {configs.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                  Chưa có cấu hình giá tín chỉ. Vui lòng thêm mới!
-                </td>
-              </tr>
-            ) : (
-              configs.map((config) => (
-                <tr key={config.id} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="px-4 py-2">{config.semester?.name} ({config.semester?.academicYear})</td>
-                  <td className="px-4 py-2 text-right font-medium">
-                    {formatCurrency(config.creditPrice)}đ
-                  </td>
-                  <td className="px-4 py-2 text-center">
-                    {config.isActive ? (
-                      <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
-                        Đang áp dụng
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
-                        Ngưng
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2 text-center">
-                    <button
-                      type="button"
-                      className="mr-2 text-blue-600 hover:text-blue-800"
-                      onClick={() => {
-                        setEditingConfig(config);
-                        setShowConfig(true);
-                      }}
-                    >
-                      Sửa
-                    </button>
-                    <button
-                      type="button"
-                      className="text-red-600 hover:text-red-800"
-                      onClick={() => handleDeleteConfig(config.id)}
-                    >
-                      Xoá
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      {/* Tabs */}
+      <div className="mb-6 flex border-b border-slate-200">
+        <button
+          type="button"
+          className={`px-4 py-2 text-sm font-medium ${
+            activeTab === "fees"
+              ? "border-b-2 border-slate-900 text-slate-900"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+          onClick={() => setActiveTab("fees")}
+        >
+          Học phí
+        </button>
+        <button
+          type="button"
+          className={`px-4 py-2 text-sm font-medium ${
+            activeTab === "transactions"
+              ? "border-b-2 border-slate-900 text-slate-900"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+          onClick={() => setActiveTab("transactions")}
+        >
+          Giao dịch VNPay
+        </button>
       </div>
 
-      {/* Grand Total */}
-      {tuitionFees.length > 0 && (
-        <div className="mb-4 grid grid-cols-4 gap-4">
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <p className="text-xs font-medium uppercase text-slate-500">Tổng phải đóng</p>
-            <p className="mt-1 text-xl font-bold text-slate-900">{formatCurrency(grandTotals.amountDue)} đ</p>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <p className="text-xs font-medium uppercase text-slate-500">Tổng đã đóng</p>
-            <p className="mt-1 text-xl font-bold text-green-600">{formatCurrency(grandTotals.amountPaid)} đ</p>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <p className="text-xs font-medium uppercase text-slate-500">Tổng miễn giảm</p>
-            <p className="mt-1 text-xl font-bold text-blue-600">{formatCurrency(grandTotals.discount)} đ</p>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <p className="text-xs font-medium uppercase text-slate-500">Tổng còn nợ</p>
-            <p className={`mt-1 text-xl font-bold ${grandTotals.debt > 0 ? "text-red-600" : "text-green-600"}`}>
-              {formatCurrency(grandTotals.debt)} đ
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Fee Tables */}
-      {isLoading ? (
-        <div className="py-20 text-center text-slate-400">Đang tải...</div>
-      ) : tuitionFees.length === 0 ? (
-        <div className="rounded-lg border border-slate-200 bg-white py-20 text-center text-slate-400">
-          Chưa có dữ liệu học phí
-        </div>
+      {activeTab === "transactions" ? (
+        <PaymentTransactionsTable transactions={transactions} isLoading={txLoading} />
       ) : (
-        tuitionFees.map((tf) => (
-          <SemesterFeeTable
-            key={tf.id}
-            tuitionFee={tf}
-            onDelete={handleDelete}
-          />
-        ))
+        <>
+          {/* Config Table */}
+          <div className="mb-6 rounded-lg border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+              <h3 className="font-medium text-slate-700">Cấu hình giá tín chỉ</h3>
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase text-slate-500">
+                  <th className="px-4 py-2">Học kỳ</th>
+                  <th className="px-4 py-2 text-right">Giá / tín chỉ</th>
+                  <th className="px-4 py-2 text-center">Trạng thái</th>
+                  <th className="px-4 py-2 text-center">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {configs.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                      Chưa có cấu hình giá tín chỉ. Vui lòng thêm mới!
+                    </td>
+                  </tr>
+                ) : (
+                  configs.map((config) => (
+                    <tr key={config.id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="px-4 py-2">{config.semester?.name} ({config.semester?.academicYear})</td>
+                      <td className="px-4 py-2 text-right font-medium">
+                        {formatCurrency(config.creditPrice)}đ
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        {config.isActive ? (
+                          <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                            Đang áp dụng
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
+                            Ngưng
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        <button
+                          type="button"
+                          className="mr-2 text-blue-600 hover:text-blue-800"
+                          onClick={() => {
+                            setEditingConfig(config);
+                            setShowConfig(true);
+                          }}
+                        >
+                          Sửa
+                        </button>
+                        <button
+                          type="button"
+                          className="text-red-600 hover:text-red-800"
+                          onClick={() => handleDeleteConfig(config.id)}
+                        >
+                          Xoá
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Grand Total */}
+          {tuitionFees.length > 0 && (
+            <div className="mb-4 grid grid-cols-4 gap-4">
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <p className="text-xs font-medium uppercase text-slate-500">Tổng phải đóng</p>
+                <p className="mt-1 text-xl font-bold text-slate-900">{formatCurrency(grandTotals.amountDue)} đ</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <p className="text-xs font-medium uppercase text-slate-500">Tổng đã đóng</p>
+                <p className="mt-1 text-xl font-bold text-green-600">{formatCurrency(grandTotals.amountPaid)} đ</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <p className="text-xs font-medium uppercase text-slate-500">Tổng miễn giảm</p>
+                <p className="mt-1 text-xl font-bold text-blue-600">{formatCurrency(grandTotals.discount)} đ</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <p className="text-xs font-medium uppercase text-slate-500">Tổng còn nợ</p>
+                <p className={`mt-1 text-xl font-bold ${grandTotals.debt > 0 ? "text-red-600" : "text-green-600"}`}>
+                  {formatCurrency(grandTotals.debt)} đ
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Fee Tables */}
+          {isLoading ? (
+            <div className="py-20 text-center text-slate-400">Đang tải...</div>
+          ) : tuitionFees.length === 0 ? (
+            <div className="rounded-lg border border-slate-200 bg-white py-20 text-center text-slate-400">
+              Chưa có dữ liệu học phí
+            </div>
+          ) : (
+            tuitionFees.map((tf) => (
+              <SemesterFeeTable
+                key={tf.id}
+                tuitionFee={tf}
+                onDelete={handleDelete}
+              />
+            ))
+          )}
+        </>
       )}
 
       {showGenerate && (
