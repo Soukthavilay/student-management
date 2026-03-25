@@ -218,6 +218,7 @@ export async function listExams(req, res, next) {
   try {
     const student = await getStudentOrThrow(req.user.id);
 
+    // Get all exams for sections the student is enrolled in
     const exams = await prisma.exam.findMany({
       where: {
         section: {
@@ -247,17 +248,44 @@ export async function listExams(req, res, next) {
             },
           },
         },
+        examRegistrations: {
+          where: {
+            studentId: student.id,
+          },
+          select: {
+            id: true,
+            registrationDate: true,
+          },
+        },
       },
       orderBy: {
         examDate: "asc",
       },
     });
 
+    // Check eligibility for each exam
+    const examsWithEligibility = await Promise.all(
+      exams.map(async (exam) => {
+        const isEligible = await checkExamEligibility(student.id, exam.sectionId);
+        const absenceRate = await calculateAbsenceRate(student.id, exam.sectionId);
+        const isRegistered = exam.examRegistrations.length > 0;
+        
+        return {
+          ...exam,
+          room: exam.room?.name || null,
+          isRegistered,
+          registration: isRegistered ? exam.examRegistrations[0] : null,
+          eligibility: {
+            isEligible,
+            absenceRate: Number((absenceRate * 100).toFixed(1)),
+            absenceThreshold: Number((ABSENCE_THRESHOLD * 100).toFixed(1)),
+          },
+        };
+      })
+    );
+
     return res.json({
-      exams: exams.map(exam => ({
-        ...exam,
-        room: exam.room?.name || null,
-      })),
+      exams: examsWithEligibility,
     });
   } catch (error) {
     return next(error);

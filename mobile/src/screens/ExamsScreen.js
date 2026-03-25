@@ -6,6 +6,8 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,45 +38,26 @@ export default function ExamsScreen() {
   const colors = isDark ? Colors.dark : Colors.light;
 
   const [exams, setExams] = useState([]);
-  const [examEligibility, setExamEligibility] = useState({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [registeringId, setRegisteringId] = useState(null);
 
   const loadData = useCallback(async (showLoader = true) => {
     if (showLoader) setLoading(true);
     try {
-      // Always fetch fresh data from backend, don't use cache
       const response = await api.student.getExams();
       const examsData = response.data.exams || [];
-      console.log('Exams loaded from backend:', examsData.map(e => ({ id: e.id, sectionId: e.sectionId })));
+      console.log('Exams loaded:', examsData.map(e => ({ 
+        id: e.id, 
+        isRegistered: e.isRegistered,
+        isEligible: e.eligibility?.isEligible 
+      })));
       setExams(examsData);
       await setCache('exams', examsData);
-
-      // Load exam eligibility for each exam
-      const eligibilityMap = {};
-      for (const exam of examsData) {
-        try {
-          const eligResponse = await api.student.getExamEligibility({
-            sectionId: exam.sectionId,
-          });
-          if (eligResponse.data) {
-            eligibilityMap[exam.id] = eligResponse.data;
-            console.log(`Exam ${exam.id} eligibility:`, eligResponse.data);
-          }
-        } catch (error) {
-          console.log(`Error loading eligibility for exam ${exam.id}:`, error.message);
-          // Silently fail for individual eligibility checks
-        }
-      }
-      console.log('All eligibilities loaded:', eligibilityMap);
-      setExamEligibility(eligibilityMap);
-      await setCache('exam-eligibility', eligibilityMap);
     } catch (error) {
       console.log('Error loading exams:', error);
       const cached = await getCached('exams');
       if (cached) setExams(cached);
-      const cachedEligibility = await getCached('exam-eligibility');
-      if (cachedEligibility) setExamEligibility(cachedEligibility);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -90,6 +73,40 @@ export default function ExamsScreen() {
     loadData(false);
   };
 
+  const handleRegisterExam = async (exam) => {
+    if (!exam.eligibility?.isEligible) {
+      Alert.alert(
+        'Không đủ điều kiện',
+        `Bạn không đủ điều kiện dự thi. Tỉ lệ vắng: ${exam.eligibility?.absenceRate ?? 0}% (Ngưỡng: ${exam.eligibility?.absenceThreshold ?? 20}%)`
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Xác nhận đăng ký thi',
+      `Bạn muốn đăng ký thi môn ${exam.section?.subject?.name}?`,
+      [
+        { text: 'Huỷ', style: 'cancel' },
+        {
+          text: 'Đăng ký',
+          onPress: async () => {
+            setRegisteringId(exam.id);
+            try {
+              await api.student.registerExam({ examId: exam.id });
+              Alert.alert('Thành công', 'Đăng ký thi thành công!');
+              loadData(false);
+            } catch (error) {
+              const message = error.response?.data?.message || 'Không thể đăng ký thi';
+              Alert.alert('Lỗi', message);
+            } finally {
+              setRegisteringId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -98,11 +115,16 @@ export default function ExamsScreen() {
     );
   }
 
+  const registeredCount = exams.filter(e => e.isRegistered).length;
+  const availableCount = exams.filter(e => !e.isRegistered && e.eligibility?.isEligible).length;
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <Text style={styles.headerTitle}>Lịch Thi</Text>
-        <Text style={styles.headerSubtitle}>{exams.length} kỳ thi</Text>
+        <Text style={styles.headerSubtitle}>
+          {exams.length} kỳ thi | {registeredCount} đã đăng ký | {availableCount} có thể đăng ký
+        </Text>
       </View>
 
       <ScrollView
@@ -117,14 +139,46 @@ export default function ExamsScreen() {
             <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
               Chưa có lịch thi
             </Text>
+            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
+              Bạn cần đăng ký học phần trước để có lịch thi
+            </Text>
           </View>
         ) : (
           exams.map((exam) => {
             const daysUntil = getDaysUntil(exam.examDate);
             const isPast = daysUntil < 0;
             const isUrgent = daysUntil >= 0 && daysUntil <= 3;
-            const eligibility = examEligibility[exam.id];
-            const isNotEligible = eligibility && eligibility.isEligible === false;
+            const isEligible = exam.eligibility?.isEligible;
+            const isRegistered = exam.isRegistered;
+            const isRegistering = registeringId === exam.id;
+
+            // DEBUG
+            console.log(`Exam ${exam.id} (${exam.section?.subject?.name}): daysUntil=${daysUntil}, isPast=${isPast}, isEligible=${isEligible}, isRegistered=${isRegistered}`);
+
+            let borderColor = colors.accent;
+            let badgeBg = colors.accent + '20';
+            let badgeText = colors.accent;
+            let statusText = exam.type;
+
+            if (isRegistered) {
+              borderColor = colors.success;
+              badgeBg = colors.success + '20';
+              badgeText = colors.success;
+              statusText = 'Đã đăng ký';
+            } else if (!isEligible) {
+              borderColor = colors.error;
+              badgeBg = colors.error + '20';
+              badgeText = colors.error;
+              statusText = 'Không đủ điều kiện';
+            } else if (isPast) {
+              borderColor = colors.textTertiary;
+              badgeBg = colors.surfaceSecondary;
+              badgeText = colors.textTertiary;
+            } else if (isUrgent) {
+              borderColor = colors.error;
+              badgeBg = colors.error + '20';
+              badgeText = colors.error;
+            }
 
             return (
               <View
@@ -134,13 +188,8 @@ export default function ExamsScreen() {
                   {
                     backgroundColor: colors.card,
                     shadowColor: colors.cardShadow,
-                    borderLeftColor: isNotEligible
-                      ? colors.error
-                      : isPast
-                        ? colors.textTertiary
-                        : isUrgent
-                          ? colors.error
-                          : colors.accent,
+                    borderLeftColor: borderColor,
+                    opacity: isPast ? 0.7 : 1,
                   },
                 ]}
               >
@@ -148,35 +197,9 @@ export default function ExamsScreen() {
                   <Text style={[styles.subjectName, { color: colors.text }]} numberOfLines={2}>
                     {exam.section?.subject?.name || ''}
                   </Text>
-                  <View
-                    style={[
-                      styles.typeBadge,
-                      {
-                        backgroundColor: isNotEligible
-                          ? colors.error + '20'
-                          : isPast
-                            ? colors.surfaceSecondary
-                            : isUrgent
-                              ? colors.error + '20'
-                              : colors.accent + '20',
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.typeBadgeText,
-                        {
-                          color: isNotEligible
-                            ? colors.error
-                            : isPast
-                              ? colors.textTertiary
-                              : isUrgent
-                                ? colors.error
-                                : colors.accent,
-                        },
-                      ]}
-                    >
-                      {isNotEligible ? 'Không đủ điều kiện' : exam.type}
+                  <View style={[styles.typeBadge, { backgroundColor: badgeBg }]}>
+                    <Text style={[styles.typeBadgeText, { color: badgeText }]}>
+                      {statusText}
                     </Text>
                   </View>
                 </View>
@@ -185,15 +208,15 @@ export default function ExamsScreen() {
                   {exam.section?.subject?.code || ''} — {exam.section?.code || ''}
                 </Text>
 
-                {isNotEligible && eligibility && (
+                {!isEligible && !isRegistered && (
                   <View style={[styles.warningBox, { backgroundColor: colors.error + '15' }]}>
                     <Ionicons name="alert-circle" size={16} color={colors.error} />
                     <View style={{ flex: 1, marginLeft: Spacing.sm }}>
                       <Text style={[styles.warningTitle, { color: colors.error }]}>
-                        Vắng quá {eligibility.absenceThreshold ?? 20}%
+                        Không đủ điều kiện dự thi
                       </Text>
                       <Text style={[styles.warningText, { color: colors.error }]}>
-                        Tỉ lệ vắng: {eligibility.absenceRate ?? 0}% (Ngưỡng: {eligibility.absenceThreshold ?? 20}%)
+                        Tỉ lệ vắng: {exam.eligibility?.absenceRate ?? 0}% (Ngưỡng: {exam.eligibility?.absenceThreshold ?? 20}%)
                       </Text>
                     </View>
                   </View>
@@ -210,20 +233,54 @@ export default function ExamsScreen() {
                   <View style={styles.metaRow}>
                     <Ionicons name="location-outline" size={14} color={colors.accent} />
                     <Text style={[styles.metaText, { color: colors.textSecondary }]}>
-                      {exam.room}
+                      Phòng: {exam.room}
                     </Text>
                   </View>
                 )}
 
-                {!isPast && !isNotEligible && (
-                  <Text
-                    style={[
-                      styles.countdown,
-                      { color: isUrgent ? colors.error : colors.success },
-                    ]}
-                  >
-                    {daysUntil === 0 ? 'Hôm nay!' : `Còn ${daysUntil} ngày`}
-                  </Text>
+                {isRegistered && exam.registration && (
+                  <View style={styles.metaRow}>
+                    <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+                    <Text style={[styles.metaText, { color: colors.success }]}>
+                      Đăng ký ngày: {new Date(exam.registration.registrationDate).toLocaleDateString('vi-VN')}
+                    </Text>
+                  </View>
+                )}
+
+                {!isRegistered && (
+                  <View style={styles.actionRow}>
+                    <TouchableOpacity
+                      onPress={() => handleRegisterExam(exam)}
+                      disabled={!isEligible || isRegistering}
+                      style={[
+                        styles.registerButton,
+                        {
+                          backgroundColor: isEligible ? colors.primary : colors.surfaceSecondary,
+                          opacity: isEligible && !isRegistering ? 1 : 0.5,
+                        },
+                      ]}
+                    >
+                      {isRegistering ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <>
+                          <Ionicons name="add-circle" size={16} color="#FFFFFF" />
+                          <Text style={styles.registerButtonText}>Đăng ký thi</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+
+                    {!isPast && (
+                      <Text
+                        style={[
+                          styles.countdown,
+                          { color: isUrgent ? colors.error : colors.success },
+                        ]}
+                      >
+                        {daysUntil === 0 ? 'Hôm nay!' : `Còn ${daysUntil} ngày`}
+                      </Text>
+                    )}
+                  </View>
                 )}
               </View>
             );
@@ -316,17 +373,44 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: FontSize.sm,
   },
+  emptySubtext: {
+    fontSize: FontSize.sm,
+    marginTop: Spacing.sm,
+    textAlign: 'center',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: Spacing.md,
+  },
+  registerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.xs,
+  },
+  registerButtonText: {
+    color: '#FFFFFF',
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+  },
+  registeredBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.xs,
+  },
+  registeredText: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+  },
   countdown: {
     fontSize: FontSize.sm,
     fontWeight: '700',
-    marginTop: Spacing.md,
-  },
-  emptyState: {
-    alignItems: 'center',
-    marginTop: 100,
-  },
-  emptyText: {
-    fontSize: FontSize.md,
-    marginTop: Spacing.lg,
   },
 });
