@@ -18,7 +18,9 @@ const adminLinks = [
 
 const lecturerLinks = [
   { to: "/dashboard", label: "Dashboard" },
+  { to: "/lecturer/teaching-classes", label: "Lớp giảng dạy" },
   { to: "/lecturer/timetable", label: "Thời khóa biểu" },
+  { to: "/lecturer/exam-registrations", label: "Đăng ký thi" },
   { to: "/lecturer/announcements", label: "Thông báo" },
   { to: "/lecturer/grades", label: "Nhập điểm" },
   { to: "/lecturer/attendance", label: "Điểm danh" },

@@ -792,7 +792,7 @@ export async function getStudentDetail(req, res, next) {
             },
             grade: true,
           },
-          orderBy: { createdAt: "desc" },
+          orderBy: { enrollmentDate: "desc" },
         },
       },
     });

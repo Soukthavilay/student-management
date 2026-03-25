@@ -105,5 +105,7 @@ export const api = {
     getAttendance: (params) => http.get("/lecturer/attendance", { params }),
     markAttendance: (payload) => http.post("/lecturer/attendance", payload),
     getAttendanceSchedule: (params) => http.get("/lecturer/attendance/schedule", { params }),
+    examRegistrations: () => http.get("/lecturer/exam-registrations"),
+    overrideExamEligibility: (payload) => http.post("/lecturer/exam-eligibility/override", payload),
   },
 };

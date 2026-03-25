@@ -21,6 +21,8 @@ import EnrollmentsPage from "./pages/EnrollmentsPage";
 import MajorPage from "./pages/MajorPage";
 import ClassGroupPage from "./pages/ClassGroupPage";
 import PaymentResultPage from "./pages/PaymentResultPage";
+import LecturerTeachingClassesPage from "./pages/LecturerTeachingClassesPage";
+import LecturerExamRegistrationPage from "./pages/LecturerExamRegistrationPage";
 
 export default function App() {
   return (
@@ -48,6 +50,8 @@ export default function App() {
           </Route>
 
           <Route element={<ProtectedRoute roles={["LECTURER"]} />}>
+            <Route path="/lecturer/teaching-classes" element={<LecturerTeachingClassesPage />} />
+            <Route path="/lecturer/exam-registrations" element={<LecturerExamRegistrationPage />} />
             <Route path="/lecturer/timetable" element={<LecturerTimetablePage />} />
             <Route path="/lecturer/announcements" element={<LecturerAnnouncementsPage />} />
             <Route path="/lecturer/grades" element={<LecturerGradesPage />} />

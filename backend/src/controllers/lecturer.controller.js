@@ -703,3 +703,133 @@ export async function listAttendanceSchedule(req, res, next) {
     return next(error);
   }
 }
+
+export async function listExamRegistrations(req, res, next) {
+  try {
+    const lecturer = await getLecturerOrThrow(req.user.id);
+    const { sectionId } = req.query;
+
+    // Get all sections taught by this lecturer
+    const teachingAssignments = await prisma.teachingAssignment.findMany({
+      where: { lecturerId: lecturer.id },
+      select: { sectionId: true },
+    });
+    const sectionIds = teachingAssignments.map((ta) => ta.sectionId);
+
+    if (sectionIds.length === 0) {
+      return res.json({ exams: [] });
+    }
+
+    // Filter by specific section if provided
+    const whereClause = sectionId
+      ? { sectionId: Number(sectionId), id: { in: sectionIds } }
+      : { sectionId: { in: sectionIds } };
+
+    // Get all exams for these sections
+    const exams = await prisma.exam.findMany({
+      where: whereClause,
+      include: {
+        section: {
+          select: {
+            id: true,
+            code: true,
+            subject: { select: { code: true, name: true } },
+            classGroup: { select: { code: true, name: true } },
+            semester: { select: { name: true, academicYear: true } },
+          },
+        },
+        room: { select: { name: true } },
+        examRegistrations: {
+          include: {
+            student: {
+              select: {
+                id: true,
+                studentCode: true,
+                user: { select: { fullName: true, email: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { examDate: "desc" },
+    });
+
+    // For each exam registration, check eligibility conditions
+    const enrichedExams = await Promise.all(
+      exams.map(async (exam) => {
+        const enrichedRegistrations = await Promise.all(
+          exam.examRegistrations.map(async (reg) => {
+            // Get enrollment info for eligibility check
+            const enrollment = await prisma.enrollment.findFirst({
+              where: {
+                sectionId: exam.sectionId,
+                studentId: reg.studentId,
+              },
+              select: {
+                id: true,
+                isEligibleForExam: true,
+              },
+            });
+
+            // Get attendance stats
+            const attendanceRecords = await prisma.attendance.findMany({
+              where: {
+                sectionId: exam.sectionId,
+                studentId: reg.studentId,
+              },
+            });
+            const totalClasses = attendanceRecords.length;
+            const presentClasses = attendanceRecords.filter(
+              (a) => a.status === "PRESENT"
+            ).length;
+            const attendanceRate = totalClasses > 0 ? presentClasses / totalClasses : 0;
+            const minAttendanceRate = 0.8; // 80% required
+
+            // Check tuition fee status
+            const tuitionFee = await prisma.tuitionFee.findFirst({
+              where: {
+                studentId: reg.studentId,
+                semesterId: exam.section.semester?.id,
+              },
+              include: { items: true },
+            });
+            const totalDebt = tuitionFee?.items.reduce((sum, item) => sum + item.debt, 0) || 0;
+            const hasNoDebt = totalDebt === 0;
+
+            // Determine eligibility
+            let isEligible;
+            if (enrollment?.isEligibleForExam !== null && enrollment?.isEligibleForExam !== undefined) {
+              // Manual override takes precedence
+              isEligible = enrollment.isEligibleForExam;
+            } else {
+              // Auto-calculate based on attendance and debt
+              isEligible = attendanceRate >= minAttendanceRate && hasNoDebt;
+            }
+
+            return {
+              ...reg,
+              enrollmentId: enrollment?.id,
+              eligibility: {
+                isEligible,
+                isOverridden: enrollment?.isEligibleForExam !== null && enrollment?.isEligibleForExam !== undefined,
+                attendanceRate,
+                minAttendanceRate,
+                hasNoDebt,
+                totalDebt,
+              },
+            };
+          })
+        );
+
+        return {
+          ...exam,
+          examRegistrations: enrichedRegistrations,
+        };
+      })
+    );
+
+    return res.json({ exams: enrichedExams });
+  } catch (error) {
+    return next(error);
+  }
+}

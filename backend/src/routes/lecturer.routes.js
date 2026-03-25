@@ -12,6 +12,7 @@ import {
   markAttendance,
   overrideExamEligibility,
   listAttendanceSchedule,
+  listExamRegistrations,
 } from "../controllers/lecturer.controller.js";
 import {
   sectionParamsSchema,
@@ -44,4 +45,5 @@ lecturerRouter.get("/attendance", listAttendance);
 lecturerRouter.post("/attendance", validate(markAttendanceSchema), markAttendance);
 lecturerRouter.get("/attendance/schedule", listAttendanceSchedule);
 
+lecturerRouter.get("/exam-registrations", listExamRegistrations);
 lecturerRouter.post("/exam-eligibility/override", validate(overrideExamEligibilitySchema), overrideExamEligibility);
