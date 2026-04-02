@@ -129,7 +129,7 @@ export const createClassGroupSchema = z.object({
     code: z.string().min(2),
     name: z.string().min(2),
     departmentId: z.coerce.number().int().positive(),
-    majorId: z.coerce.number().int().positive(),
+    majorId: z.coerce.number().int().positive().optional(),
   }),
 });
 
