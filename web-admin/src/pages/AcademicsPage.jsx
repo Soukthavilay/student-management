@@ -18,6 +18,7 @@ const classSchema = z.object({
   code: z.string().min(2),
   name: z.string().min(2),
   departmentId: z.coerce.number().int().positive(),
+  majorId: z.coerce.number().int().positive(),
 });
 
 const subjectSchema = z.object({
@@ -87,6 +88,7 @@ export default function AcademicsPage() {
   const departmentsQuery = useQuery({ queryKey: ["departments"], queryFn: async () => { const r = await api.admin.departments(); return r.data.data || []; } });
   const semestersQuery = useQuery({ queryKey: ["semesters"], queryFn: async () => { const r = await api.admin.semesters(); return r.data.data || []; } });
   const roomsQuery = useQuery({ queryKey: ["rooms"], queryFn: async () => { const r = await api.admin.rooms(); return r.data.data || []; } });
+  const majorsQuery = useQuery({ queryKey: ["majors-all"], queryFn: async () => { const r = await api.admin.majors(); return r.data.data || []; } });
   const classGroupsQuery = useQuery({ queryKey: ["class-groups-all"], queryFn: async () => { const r = await api.admin.classGroups(); return r.data.data || []; } });
   const subjectsQuery = useQuery({ queryKey: ["subjects-all"], queryFn: async () => { const r = await api.admin.subjects(); return r.data.data || []; } });
   const sectionsQuery = useQuery({ queryKey: ["sections"], queryFn: async () => { const r = await api.admin.sections(); return r.data.data || []; } });
@@ -385,7 +387,7 @@ export default function AcademicsPage() {
         <>
           {showForm && (
             <TableCard title={editingItem ? "Sửa lớp học" : "Tạo lớp học"}>
-              <form className="grid gap-3 md:grid-cols-3" onSubmit={classForm.handleSubmit(async (v) => { 
+              <form className="grid gap-3 md:grid-cols-4" onSubmit={classForm.handleSubmit(async (v) => { 
                 if (editingItem) {
                   await updateClassMutation.mutateAsync({ id: editingItem.id, payload: v });
                 } else {
@@ -405,7 +407,13 @@ export default function AcademicsPage() {
                     {(departmentsQuery.data || []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </FormField>
-                <div className="md:col-span-3 flex gap-3">
+                <FormField label="Ngành" error={classForm.formState.errors.majorId?.message}>
+                  <select className="rounded border border-slate-300 px-3 py-2" {...classForm.register("majorId")}>
+                    <option value="">Chọn ngành</option>
+                    {(majorsQuery.data || []).map((m) => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}
+                  </select>
+                </FormField>
+                <div className="md:col-span-4 flex gap-3">
                   <button className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800" type="submit">{editingItem ? "Cập nhật" : "Tạo"}</button>
                   <button type="button" className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" onClick={() => closeForm(classForm)}>Huỷ</button>
                 </div>
