@@ -218,9 +218,11 @@ export async function createClassGroup(req, res, next) {
   try {
     const { code, name, departmentId, majorId } = req.body;
 
-    const major = await prisma.major.findUnique({ where: { id: majorId } });
-    if (!major) {
-      throw badRequest("Ngành không tồn tại");
+    if (majorId) {
+      const major = await prisma.major.findUnique({ where: { id: majorId } });
+      if (!major) {
+        throw badRequest("Ngành không tồn tại");
+      }
     }
 
     const created = await prisma.classGroup.create({
@@ -228,7 +230,7 @@ export async function createClassGroup(req, res, next) {
         code,
         name,
         departmentId,
-        majorId,
+        majorId: majorId ?? null,
       },
       include: {
         department: { select: { id: true, code: true, name: true } },
