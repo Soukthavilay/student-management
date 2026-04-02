@@ -123,10 +123,10 @@ model ClassGroup {
   code         String @unique
   name         String
   departmentId Int
-  majorId      Int?
+  majorId      Int
 
   department    Department     @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  major         Major?         @relation(fields: [majorId], references: [id], onDelete: Restrict)
+  major         Major          @relation(fields: [majorId], references: [id], onDelete: Restrict)
   students      Student[]
   sections      Section[]
   announcements Announcement[]
